@@ -1,0 +1,2 @@
+# The agent runtime reuses the kernel's stack (fastapi/sqlalchemy/httpx/arq). No extra runtime deps
+# beyond what Core already ships; LLM adapters are httpx-based (no provider SDKs).

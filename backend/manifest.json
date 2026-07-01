@@ -1,0 +1,13 @@
+{
+  "id": "ai",
+  "name": "AI / Agent runtime",
+  "version": "0.1.0",
+  "coreVersion": "^0.1.0",
+  "dependencies": [],
+  "optionalDependencies": [],
+  "provides": ["ai.LLM"],
+  "consumes": ["knowledge.Retriever"],
+  "permissions": [],
+  "routes": [],
+  "migrations": "plugin-owned (backend/migrate.py: create_all; run by scripts.migrate_plugins)"
+}
