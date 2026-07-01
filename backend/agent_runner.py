@@ -29,7 +29,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from ...core import redis_client
+from . import redis_bus
 from ...core.config import settings
 from ...core.contracts import Retriever  # the RAG contract lives in the kernel now (ai consumes it)
 from ...core.db import SessionLocal
@@ -216,7 +216,7 @@ async def run(
         log.info("run started (kind=%s, model=%s, resumed_steps=%d)", run_row.kind, model, used_steps)
 
         while True:
-            if await redis_client.is_run_cancelled(str(rid)):
+            if await redis_bus.is_run_cancelled(str(rid)):
                 await runs_repo.set_run_status(db, rid, "cancelled", ended=True)
                 await runs_repo.set_agent_status(db, run_row.agent_id, "idle")
                 await events.publish_run(task_id, rid, "cancelled")

@@ -20,7 +20,7 @@ import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from ...core import redis_client
+from . import redis_bus
 from ...core.db import SessionLocal
 from ...core.identity import provider_for
 from . import task_service
@@ -64,7 +64,11 @@ async def ws_endpoint(websocket: WebSocket) -> None:
         await websocket.close(code=4401)  # unauthorized
         return
 
-    pubsub = redis_client.redis.pubsub()
+    conn = redis_bus.client()
+    if conn is None:
+        await websocket.close(code=1011)  # redis tool disabled — no realtime transport
+        return
+    pubsub = conn.pubsub()
     channels = {_USER_CHANNEL.format(user_id)}
     await pubsub.subscribe(*channels)
 

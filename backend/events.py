@@ -16,7 +16,7 @@ import logging
 
 from redis.exceptions import RedisError
 
-from ...core.redis_client import redis
+from . import redis_bus
 
 log = logging.getLogger("pikaos.events")
 
@@ -54,8 +54,11 @@ def serialize_step(step) -> dict:
 async def _publish(task_id: str | None, event: dict) -> None:
     if not task_id:
         return  # a run not bound to a task streams nowhere — nothing to do
+    conn = redis_bus.client()
+    if conn is None:
+        return  # redis tool disabled — the event is still durable in run_steps
     try:
-        await redis.publish(_TASK_CHANNEL.format(task_id), json.dumps(event, default=str))
+        await conn.publish(_TASK_CHANNEL.format(task_id), json.dumps(event, default=str))
     except RedisError as exc:
         log.warning("redis down — dropped task event (durable in run_steps): %s", exc)
 

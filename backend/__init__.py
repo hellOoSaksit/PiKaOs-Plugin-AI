@@ -37,10 +37,14 @@ jobs = [func(agent_run, keep_result=3600)]
 
 
 def register(ctx) -> None:
-    """Bind the `ai.LLM` factory so other plugins resolve the configured LLM without importing us."""
-    from ...core.contracts import AI_LLM
+    """Bind the `ai.LLM` factory so other plugins resolve the configured LLM without importing us, and
+    wire the Redis realtime/run-cancel client from the `redis.Connection` contract (redis boots first — a
+    declared dependency). If redis is absent the event stream + cancel flag degrade like a Redis outage."""
+    from ...core.contracts import AI_LLM, REDIS_CONNECTION
     from .llm_config_service import ConfiguredLLMProvider
+    from . import redis_bus
 
+    redis_bus.bind(ctx.container.resolve(REDIS_CONNECTION))
     ctx.container.bind(AI_LLM, ConfiguredLLMProvider)
 
 

@@ -3,10 +3,10 @@
   "name": "AI / Agent runtime",
   "version": "0.1.0",
   "coreVersion": "^0.1.0",
-  "dependencies": [],
+  "dependencies": ["redis"],
   "optionalDependencies": [],
   "provides": ["ai.LLM"],
-  "consumes": ["knowledge.Retriever"],
+  "consumes": ["knowledge.Retriever", "redis.Connection"],
   "permissions": [],
   "routes": [],
   "migrations": "plugin-owned (backend/migrate.py: create_all; run by scripts.migrate_plugins)"
