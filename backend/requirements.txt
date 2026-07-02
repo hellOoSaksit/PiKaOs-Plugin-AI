@@ -1,2 +1,3 @@
-# The agent runtime reuses the kernel's stack (fastapi/sqlalchemy/httpx/arq). No extra runtime deps
-# beyond what Core already ships; LLM adapters are httpx-based (no provider SDKs).
+# The agent runtime's LLM adapters are httpx-based (no provider SDKs). sqlalchemy comes from the postgres
+# tool, arq/redis from the redis tool — both declared as dependencies; merged into the Core image at build.
+httpx==0.28.1
