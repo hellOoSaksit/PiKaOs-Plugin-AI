@@ -3,11 +3,111 @@
   "name": "AI / Agent runtime",
   "version": "0.1.0",
   "coreVersion": "^0.1.0",
-  "dependencies": ["postgres", "redis"],
+  "dependencies": [
+    "postgres",
+    "redis"
+  ],
   "optionalDependencies": [],
-  "provides": ["ai.LLM"],
-  "consumes": ["postgres.Connection", "knowledge.Retriever", "redis.Connection"],
-  "permissions": [],
+  "provides": [
+    "ai.LLM"
+  ],
+  "consumes": [
+    "postgres.Connection",
+    "knowledge.Retriever",
+    "redis.Connection"
+  ],
+  "permissions": [
+    {
+      "key": "agent.create",
+      "group": "Agents",
+      "name_th": "สร้าง Agent",
+      "name_en": "Create agents"
+    },
+    {
+      "key": "agent.appearance",
+      "group": "Agents",
+      "name_th": "แก้รูปลักษณ์/คลาส Agent",
+      "name_en": "Edit appearance & class"
+    },
+    {
+      "key": "character.manage",
+      "group": "Agents",
+      "name_th": "เพิ่ม/จัดการการ์ดตัวละคร",
+      "name_en": "Manage character cards"
+    },
+    {
+      "key": "options.manage",
+      "group": "Agents",
+      "name_th": "เพิ่มตัวเลือก ตำแหน่ง/ทักษะ/เครื่องมือ",
+      "name_en": "Add roster options"
+    },
+    {
+      "key": "rules.manage",
+      "group": "Agents",
+      "name_th": "แก้กฎหลัก (บังคับทุกตัว)",
+      "name_en": "Manage core rules"
+    },
+    {
+      "key": "agent.config",
+      "group": "Agents",
+      "name_th": "แก้ตั้งค่าขั้นสูง (ตำแหน่ง/หน้าที่/โมเดล/API)",
+      "name_en": "Edit advanced config"
+    },
+    {
+      "key": "profile.manage",
+      "group": "Agents",
+      "name_th": "สร้าง/จัดการโปรไฟล์ (Profile)",
+      "name_en": "Manage profiles"
+    },
+    {
+      "key": "agent.edit.any",
+      "group": "Agents",
+      "name_th": "แก้ Agent ของผู้อื่น",
+      "name_en": "Edit any agent"
+    },
+    {
+      "key": "agent.delete.any",
+      "group": "Agents",
+      "name_th": "ลบ Agent ของผู้อื่น",
+      "name_en": "Delete any agent"
+    },
+    {
+      "key": "task.run",
+      "group": "Work",
+      "name_th": "สั่งรันงาน",
+      "name_en": "Run tasks"
+    },
+    {
+      "key": "task.delete",
+      "group": "Work",
+      "name_th": "ลบงาน (Task)",
+      "name_en": "Delete tasks"
+    },
+    {
+      "key": "workflow.manage",
+      "group": "Workflows",
+      "name_th": "จัดการ workflow",
+      "name_en": "Manage workflows"
+    },
+    {
+      "key": "llm.view",
+      "group": "Admin",
+      "name_th": "ดูการตั้งค่า LLM/โมเดล",
+      "name_en": "View LLM provider config"
+    },
+    {
+      "key": "llm.manage",
+      "group": "Admin",
+      "name_th": "ตั้งค่า LLM/โมเดล (provider/API หรือ Local)",
+      "name_en": "Manage LLM provider config"
+    },
+    {
+      "key": "llm.assign",
+      "group": "Admin",
+      "name_th": "มอบหมายโมเดลให้ระบบ (engine/search/summarize)",
+      "name_en": "Assign LLM to system roles"
+    }
+  ],
   "routes": [],
   "migrations": "plugin-owned (backend/migrate.py: create_all; run by scripts.migrate_plugins)"
 }
