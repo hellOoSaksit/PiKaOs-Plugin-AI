@@ -40,10 +40,13 @@ def register(ctx) -> None:
     """Bind the `ai.LLM` factory so other plugins resolve the configured LLM without importing us, and
     wire the Redis realtime/run-cancel client from the `redis.Connection` contract (redis boots first — a
     declared dependency). If redis is absent the event stream + cancel flag degrade like a Redis outage."""
-    from ...core.contracts import AI_LLM, REDIS_CONNECTION
+    from ...core.contracts import AI_LLM, POSTGRES_CONNECTION, REDIS_CONNECTION
     from .llm_config_service import ConfiguredLLMProvider
-    from . import redis_bus
+    from . import db_ref, redis_bus
 
+    # Zero-datastore kernel: the session factory comes from the postgres Tool's contract (a declared
+    # dependency, so it registered first). The run loop / ws / stub tools open sessions via db_ref.
+    db_ref.bind(ctx.container.resolve(POSTGRES_CONNECTION))
     redis_bus.bind(ctx.container.resolve(REDIS_CONNECTION))
     ctx.container.bind(AI_LLM, ConfiguredLLMProvider)
 

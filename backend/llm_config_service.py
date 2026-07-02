@@ -16,7 +16,7 @@ import uuid
 
 from ...core import crypto
 from ...core.config import settings
-from ...core.db import SessionLocal
+from . import db_ref
 from . import llm_connections_repo as repo
 from . import llm_role_bindings_repo as role_repo
 from .engine_stubs import StubLLMProvider
@@ -172,7 +172,7 @@ def _invalidate() -> None:
 
 async def _resolve(role: str | None) -> object:
     """Resolve a role to a live provider: role binding → active connection → .env fallback."""
-    async with SessionLocal() as db:
+    async with db_ref.new_session() as db:
         row = await role_repo.get_connection_for_role(db, role) if role else None
         if row is None:
             row = await repo.get_active(db)

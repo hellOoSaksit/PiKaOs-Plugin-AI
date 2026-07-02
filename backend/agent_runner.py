@@ -32,8 +32,8 @@ from typing import Protocol, runtime_checkable
 from . import redis_bus
 from ...core.config import settings
 from ...core.contracts import Retriever  # the RAG contract lives in the kernel now (ai consumes it)
-from ...core.db import SessionLocal
 from ...core.logging_ctx import bind_run, reset_run
+from . import db_ref
 from . import runs_repo
 from . import events
 
@@ -133,7 +133,7 @@ async def run(
     provider: LLMProvider,
     tools: ToolRegistry,
     retriever: "Retriever | None" = None,
-    db_factory=SessionLocal,
+    db_factory=db_ref.new_session,
 ) -> str:
     """Execute (or resume) one agent run to a terminal status. Returns the final status.
 

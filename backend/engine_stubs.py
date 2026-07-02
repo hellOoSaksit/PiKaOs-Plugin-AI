@@ -22,7 +22,7 @@ import json
 import logging
 import uuid
 
-from ...core.db import SessionLocal
+from . import db_ref
 from . import stub_tools_repo as stub_repo
 from .agent_runner import (
     EFFECT_IDEMPOTENT_WRITE,
@@ -92,7 +92,7 @@ class StubToolRegistry:
         if name == "echo":
             return {"echo": args}
         run_id = _run_id_of(idempotency_key)
-        async with SessionLocal() as db:
+        async with db_ref.new_session() as db:
             if name == "upsert":
                 inserted = await stub_repo.upsert_write(db, run_id, name, idempotency_key, args)
                 return {"upserted": inserted, "key": idempotency_key}

@@ -20,8 +20,7 @@ import json
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from . import redis_bus
-from ...core.db import SessionLocal
+from . import db_ref, redis_bus
 from ...core.identity import provider_for
 from . import task_service
 
@@ -52,7 +51,7 @@ async def _authenticate(websocket: WebSocket) -> str | None:
 
 
 async def _can_view_task(user_id: str, task_id: str) -> bool:
-    async with SessionLocal() as db:
+    async with db_ref.new_session() as db:
         return await task_service.can_view(db, user_id, task_id)
 
 
@@ -96,7 +95,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                     # the client dedups by (run_id, seq) if the snapshot and a live event overlap.
                     await pubsub.subscribe(ch)
                     await websocket.send_json({"type": "subscribed", "task_id": task_id})
-                    async with SessionLocal() as db:
+                    async with db_ref.new_session() as db:
                         await websocket.send_json(await task_service.snapshot(db, task_id))
                 else:
                     await websocket.send_json({"type": "error", "reason": "forbidden", "task_id": task_id})
@@ -112,7 +111,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                 run_id, after_seq = str(msg.get("run_id", "")), int(msg.get("after_seq", -1))
                 task_id = str(msg.get("task_id", ""))
                 if run_id and task_id and _TASK_CHANNEL.format(task_id) in channels:
-                    async with SessionLocal() as db:
+                    async with db_ref.new_session() as db:
                         await websocket.send_json(await task_service.backfill(db, task_id, run_id, after_seq))
             # any other frame is ignored — no global echo (that was the cross-user leak)
     except WebSocketDisconnect:
