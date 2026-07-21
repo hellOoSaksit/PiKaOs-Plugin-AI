@@ -132,3 +132,13 @@ class OpenAIProvider:
             resp = await client.post("/chat/completions", json=body, headers=headers)
             resp.raise_for_status()
             return parse_openai_response(resp.json())
+
+    async def probe(self, *, timeout: float = 5.0) -> dict:
+        """Cheap liveness/auth check for the Test-connection button — GET {root}/models (no token
+        cost). base_url is the API ROOT (e.g. http://localhost:1234/v1), so /models sits beside
+        /chat/completions. Returns a sanitized {ok, status, category, detail}."""
+        from . import llm_probe
+        return await llm_probe.run_probe(
+            method="GET", url=f"{self.base_url}/models",
+            headers={"Authorization": f"Bearer {self.api_key}"},
+            timeout=timeout, transport=self._transport)

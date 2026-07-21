@@ -15,9 +15,13 @@ const staticKeys = [...screenSrc.matchAll(/\bt\('([^']+)'\)/g)].map((m) => m[1])
 
 // dynamic keys the screen builds by concatenation
 const ROLES = ['engine', 'search', 'summarize', 'answer'];   // backend ROLES tuple; a new backend role falls back to its raw key until the pack learns it
+// probe result categories the backend can return (llm_probe.categorize_*) — the screen builds
+// t('llmcfg.test.cat.' + category); every one must have a localized message.
+const TEST_CATEGORIES = ['ok', 'auth', 'not_found', 'rate_limit', 'timeout', 'connection', 'http', 'blocked', 'error'];
 const dynamicKeys = [
   ...PROVIDERS.map((p) => 'llmcfg.provider.' + p),
   ...ROLES.flatMap((r) => ['llmcfg.role.' + r, 'llmcfg.role.' + r + '.desc']),
+  ...TEST_CATEGORIES.map((c) => 'llmcfg.test.cat.' + c),
   'nav.llm-config',                                          // the sidebar renders "nav." + route id
   'route.llm-config.title',                                  // the topbar renders "route." + route id + ".title"
 ];

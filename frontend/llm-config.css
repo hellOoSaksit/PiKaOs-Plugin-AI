@@ -5,7 +5,18 @@
    as one line. Two-class selector out-specifies the bare `.utable` rule. */
 .llm-conn-table .utable-th,
 .llm-conn-table .utable-tr {
-  grid-template-columns: minmax(180px, 1.7fr) 150px minmax(150px, 1fr) 116px auto;
+  grid-template-columns: minmax(150px, 1.5fr) 140px minmax(130px, 1fr) 100px 128px auto;
+}
+
+/* Test-connection status pill — a badge that reads its result on hover (Tooltip). Keyboard-reachable
+   (tabIndex on the span) so the tip shows on focus too. */
+.llm-conn-table .llm-test-pill {
+  cursor: default;
+  outline: none;
+}
+.llm-conn-table .llm-test-pill:focus-visible {
+  box-shadow: 0 0 0 2px var(--accent-soft, rgba(80,120,255,.35));
+  border-radius: 999px;
 }
 
 /* the model id is monospace — keep it on one line and a touch smaller so it sits level with the

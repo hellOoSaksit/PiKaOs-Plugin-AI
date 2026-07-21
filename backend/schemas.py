@@ -46,3 +46,12 @@ class LlmRoleOut(BaseModel):
     connection_name: str | None = None
     plugin: str = "ai"                        # which plugin consumes this role (engine=ai, RAG trio=knowledge)
     available: bool = True                    # False = that plugin isn't installed — UI disables binding
+
+
+# Test-connection probe result (sanitized — never carries the key or a raw response body)
+class LlmTestOut(BaseModel):
+    ok: bool
+    category: str                             # ok | auth | not_found | rate_limit | timeout | connection | http | blocked | error
+    detail: str = ""                          # short, human-readable — safe to show
+    status: int | None = None                 # upstream HTTP status, when there was one
+    latency_ms: int | None = None

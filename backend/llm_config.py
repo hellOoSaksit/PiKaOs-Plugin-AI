@@ -22,6 +22,7 @@ from .schemas import (
     LlmConnectionUpdate,
     LlmRoleOut,
     LlmRoleSet,
+    LlmTestOut,
 )
 from . import llm_config_service as svc
 
@@ -83,6 +84,21 @@ async def activate_connection(
     except svc.NotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
     return LlmConnectionOut(**out)
+
+
+@router.post("/{cid}/test", response_model=LlmTestOut)
+async def test_connection(
+    cid: uuid.UUID,
+    _: object = Depends(require_perm("llm.manage")),
+    db: AsyncSession = Depends(get_db),
+) -> LlmTestOut:
+    """Probe a saved connection's endpoint + stored key (no completion tokens spent). The key never
+    leaves the server; the result is sanitized (a category + short message, never a raw body)."""
+    try:
+        out = await svc.test_connection(db, cid)
+    except svc.NotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    return LlmTestOut(**out)
 
 
 @router.delete("/{cid}", status_code=status.HTTP_204_NO_CONTENT)

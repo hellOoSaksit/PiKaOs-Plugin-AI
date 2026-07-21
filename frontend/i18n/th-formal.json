@@ -21,7 +21,7 @@
     "llmcfg.model": "โมเดล",
     "llmcfg.endpoint": "Endpoint (ไม่ใส่ก็ได้)",
     "llmcfg.endpointCustom": "Base URL (จำเป็น)",
-    "llmcfg.endpointCustomHint": "URL เต็มของ chat-completions เช่น http://localhost:1234/v1/chat/completions",
+    "llmcfg.endpointCustomHint": "URL รากของ API เช่น http://localhost:1234/v1 — ระบบจะต่อ /chat/completions ให้เอง",
     "llmcfg.apiKey": "API Key",
     "llmcfg.apiKeyKeep": "เว้นว่าง = คงคีย์เดิม",
     "llmcfg.apiKeyLocal": "Local (Ollama) ไม่ต้องใช้คีย์",
@@ -47,6 +47,20 @@
     "llmcfg.role.answer": "ตอบคำถาม (RAG)",
     "llmcfg.role.answer.desc": "สังเคราะห์คำตอบจากคลังข้อมูลพร้อมอ้างอิงแหล่งที่มา",
     "llmcfg.roles.notInstalled": "ยังไม่ได้ติดตั้งโมดูล — ติดตั้งก่อนจึงจะกำหนดได้",
-    "route.llm-config.title": "ตั้งค่า AI"
+    "route.llm-config.title": "ตั้งค่า AI",
+    "llmcfg.test.col": "ทดสอบ",
+    "llmcfg.test.btn": "ทดสอบ",
+    "llmcfg.test.testing": "กำลังทดสอบ…",
+    "llmcfg.test.ready": "พร้อม",
+    "llmcfg.test.notReady": "ไม่พร้อม",
+    "llmcfg.test.cat.ok": "เชื่อมต่อได้ — คีย์ผ่าน",
+    "llmcfg.test.cat.auth": "คีย์ถูกปฏิเสธ — ตรวจสอบ API key",
+    "llmcfg.test.cat.not_found": "ไม่พบ endpoint/โมเดล — ตรวจ Base URL",
+    "llmcfg.test.cat.rate_limit": "ถูกจำกัดอัตราจากผู้ให้บริการ",
+    "llmcfg.test.cat.timeout": "endpoint ไม่ตอบในเวลาที่กำหนด",
+    "llmcfg.test.cat.connection": "เชื่อมต่อ endpoint ไม่ได้",
+    "llmcfg.test.cat.http": "endpoint ตอบกลับด้วยข้อผิดพลาด",
+    "llmcfg.test.cat.blocked": "ถูกบล็อก — ที่อยู่นี้ไม่อนุญาต",
+    "llmcfg.test.cat.error": "เกิดข้อผิดพลาดที่ไม่คาดคิด"
   }
 }

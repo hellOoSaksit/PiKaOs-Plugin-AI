@@ -55,6 +55,11 @@ def _est_tokens(text: str) -> int:
 class StubLLMProvider:
     """Deterministic, free LLM stand-in (see module docstring)."""
 
+    async def probe(self, *, timeout: float = 5.0) -> dict:
+        """The stub has no endpoint — report ok so a Test on the .env-fallback provider is honest
+        ('the built-in stub is reachable') rather than a confusing network error."""
+        return {"ok": True, "status": None, "category": "ok", "detail": "built-in stub (no endpoint)"}
+
     async def complete(self, *, model: str, messages: list[dict], tools: list[dict]) -> LLMResult:
         turn = sum(1 for m in messages if m.get("role") == "assistant")
         script = _find_script(messages)

@@ -167,6 +167,39 @@ async def set_role(db, role: str, connection_id: uuid.UUID | None) -> dict:
     return _role_entry(role, conn)
 
 
+# --- test connection (probe a stored connection's endpoint + key) ------------
+
+
+async def test_connection(db, cid: uuid.UUID, *, timeout: float = 5.0) -> dict:
+    """Probe a SAVED connection (endpoint + stored key) so an admin sees ready/not-ready without
+    spending completion tokens. The key stays server-side (never re-sent by the client). base_url is
+    SSRF-checked for the cloud-metadata range only (local LLMs are allowed). Returns a sanitized
+    {ok, category, detail, status, latency_ms}."""
+    from . import llm_probe
+    row = await repo.get_connection(db, cid)
+    if row is None:
+        raise NotFound
+    eff_base_url = row.base_url or _default_base_url(row.provider)
+    try:
+        llm_probe.assert_not_metadata(eff_base_url)
+    except llm_probe.BlockedURL as e:
+        return {"ok": False, "category": "blocked", "detail": str(e), "status": None, "latency_ms": None}
+    provider = build_provider(row)
+    start = time.monotonic()
+    result = await provider.probe(timeout=timeout)
+    result["latency_ms"] = int((time.monotonic() - start) * 1000)
+    return result
+
+
+def _default_base_url(provider: str) -> str:
+    """The endpoint a provider hits when the connection sets no base_url — for the SSRF pre-check."""
+    if provider == "anthropic":
+        return settings.anthropic_base_url
+    if provider == "ollama":
+        return settings.llm_base_url
+    return settings.openai_base_url               # openai + custom + fallback
+
+
 # --- resolving the active connection into a live provider (worker side) ------
 
 

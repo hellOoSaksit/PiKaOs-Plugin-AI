@@ -4,7 +4,7 @@
    The API key is write-only: the UI only ever sees api_key_set. */
 import React from 'react';
 const { useState, useEffect, useCallback } = React;
-import { Button, Field, Modal, Panel, PageHead, Table, Empty } from '../../components/ui';
+import { Button, Field, Modal, Panel, PageHead, Table, Empty, Tooltip } from '../../components/ui';
 import { Select } from '../../components/ui/Dropdown.jsx';
 import { PROVIDERS, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
 import './llm-config.css';
@@ -18,6 +18,7 @@ export function LlmConfig({ ctx }) {
   const [error, setError] = useState(null);
   const [form, setForm] = useState(null);            // { mode: 'create'|'edit', id?, data }
   const [busy, setBusy] = useState(false);
+  const [tests, setTests] = useState({});            // { [connId]: { loading?, ok, category, status } }
 
   const load = useCallback(() => {
     setError(null);
@@ -53,6 +54,16 @@ export function LlmConfig({ ctx }) {
   const bindRole = (role, cid) =>
     act(() => api.raw(`/ai/llm/roles/${role}`, { method: 'PUT', body: { connection_id: cid || null } }));
 
+  // Test connection — probe the SAVED endpoint + stored key server-side (the key never leaves the
+  // server). The result is a sanitized {ok, category, status}; the pill localizes it by category.
+  const testConn = (c) => {
+    setTests((t) => ({ ...t, [c.id]: { loading: true } }));
+    api.raw(`/ai/llm/connections/${c.id}/test`, { method: 'POST' })
+      .then((r) => setTests((t) => ({ ...t, [c.id]: { ...r, loading: false } })))
+      .catch((e) => setTests((t) => ({ ...t, [c.id]: { ok: false, category: 'error', detail: e.message, loading: false } })));
+  };
+  const testLabel = (r) => t('llmcfg.test.cat.' + (r.category || 'error')) + (r.status ? ` · HTTP ${r.status}` : '');
+
   const setF = (k) => (e) => setForm((f) => ({ ...f, data: { ...f.data, [k]: e.target.value } }));
   const fields = form ? providerFields(form.data.provider) : null;
 
@@ -70,6 +81,20 @@ export function LlmConfig({ ctx }) {
         {c.api_key_set ? t('llmcfg.keyStored') : t('llmcfg.keyNone')}
       </span>
     ) },
+    { key: 'test', header: t('llmcfg.test.col'), render: (c) => {
+      const r = tests[c.id];
+      if (r && !r.loading) {
+        return (
+          <Tooltip label={testLabel(r)}>
+            <span className={`badge ${r.ok ? 'on' : 'warn'} llm-test-pill`} data-no-lex tabIndex={0}>
+              <span className="dot" />{r.ok ? t('llmcfg.test.ready') : t('llmcfg.test.notReady')}
+            </span>
+          </Tooltip>
+        );
+      }
+      return <Button size="sm" icon="refresh" label={t('llmcfg.test.btn')} loading={!!(r && r.loading)}
+        loadingLabel={t('llmcfg.test.testing')} disabled={busy} onClick={() => testConn(c)}>{t('llmcfg.test.btn')}</Button>;
+    } },
     { key: 'act', header: '', render: (c) => (
       <span className="uc-act" onClick={(e) => e.stopPropagation()}>
         {!c.is_active && <Button size="sm" disabled={busy} onClick={() => activate(c)}>{t('llmcfg.activate')}</Button>}
@@ -131,7 +156,7 @@ export function LlmConfig({ ctx }) {
           <Field id="llm-base-url"
             label={fields.baseUrl === 'required' ? t('llmcfg.endpointCustom') : t('llmcfg.endpoint')}
             hint={fields.baseUrl === 'required' ? t('llmcfg.endpointCustomHint') : undefined}
-            placeholder="http://localhost:1234/v1/chat/completions"
+            placeholder="http://localhost:1234/v1"
             value={form.data.base_url} onChange={setF('base_url')} />
           {fields.apiKey !== 'hidden' && (
             <Field id="llm-api-key" label={t('llmcfg.apiKey')} type="password"

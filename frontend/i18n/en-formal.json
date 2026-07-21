@@ -21,7 +21,7 @@
     "llmcfg.model": "Model",
     "llmcfg.endpoint": "Endpoint (optional)",
     "llmcfg.endpointCustom": "Base URL (required)",
-    "llmcfg.endpointCustomHint": "The FULL chat-completions URL, e.g. http://localhost:1234/v1/chat/completions",
+    "llmcfg.endpointCustomHint": "The API ROOT, e.g. http://localhost:1234/v1 — the server appends /chat/completions",
     "llmcfg.apiKey": "API Key",
     "llmcfg.apiKeyKeep": "Leave blank to keep current key",
     "llmcfg.apiKeyLocal": "Local (Ollama) needs no key",
@@ -47,6 +47,20 @@
     "llmcfg.role.answer": "Answer (RAG)",
     "llmcfg.role.answer.desc": "Synthesize an answer from the codex with source citations",
     "llmcfg.roles.notInstalled": "Module not installed — install it before assigning",
-    "route.llm-config.title": "AI Settings"
+    "route.llm-config.title": "AI Settings",
+    "llmcfg.test.col": "Test",
+    "llmcfg.test.btn": "Test",
+    "llmcfg.test.testing": "Testing…",
+    "llmcfg.test.ready": "Ready",
+    "llmcfg.test.notReady": "Not ready",
+    "llmcfg.test.cat.ok": "Reachable — key accepted",
+    "llmcfg.test.cat.auth": "The API key was rejected",
+    "llmcfg.test.cat.not_found": "Endpoint or model not found — check the Base URL",
+    "llmcfg.test.cat.rate_limit": "Rate-limited by the provider",
+    "llmcfg.test.cat.timeout": "The endpoint did not respond in time",
+    "llmcfg.test.cat.connection": "Could not connect to the endpoint",
+    "llmcfg.test.cat.http": "The endpoint returned an error",
+    "llmcfg.test.cat.blocked": "Blocked — the address is not allowed",
+    "llmcfg.test.cat.error": "Unexpected error"
   }
 }

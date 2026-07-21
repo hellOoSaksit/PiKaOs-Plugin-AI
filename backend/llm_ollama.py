@@ -123,6 +123,16 @@ class OllamaProvider:
         if ollama_tools:
             body["tools"] = ollama_tools
 
+        return await self._chat(body)
+
+    async def probe(self, *, timeout: float = 5.0) -> dict:
+        """Cheap liveness check for the Test-connection button — GET {base}/api/tags (Ollama's model
+        list, keyless). Returns a sanitized {ok, status, category, detail}."""
+        from . import llm_probe
+        return await llm_probe.run_probe(method="GET", url=f"{self.base_url}/api/tags",
+                                         headers={}, timeout=timeout, transport=self._transport)
+
+    async def _chat(self, body):
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout,
                                      transport=self._transport) as client:
             resp = await client.post("/api/chat", json=body)
