@@ -8,6 +8,13 @@
 
 export const PROVIDERS = ['openai', 'anthropic', 'custom'];
 
+// The picker set, but with the row's CURRENT provider prepended when it isn't a picker option
+// (a legacy `ollama` row being edited). Without this the provider Select's value has no matching
+// option → it renders blank / coerces to the first option, silently rewriting provider on save.
+export function providerOptions(current) {
+  return current && !PROVIDERS.includes(current) ? [current, ...PROVIDERS] : PROVIDERS;
+}
+
 export function providerFields(provider) {
   if (provider === 'ollama') return { baseUrl: 'optional', apiKey: 'hidden' };   // legacy rows only
   if (provider === 'custom') return { baseUrl: 'required', apiKey: 'optional' };

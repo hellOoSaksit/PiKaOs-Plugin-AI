@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest';
-import { PROVIDERS, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
+import { PROVIDERS, providerOptions, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
 
 describe('PROVIDERS', () => {
   it('is the picker set (ollama dropped — reached via custom), custom last', () => {
     expect(PROVIDERS).toEqual(['openai', 'anthropic', 'custom']);
+  });
+});
+
+describe('providerOptions', () => {
+  it('is the plain picker set for a normal provider', () => {
+    expect(providerOptions('openai')).toEqual(PROVIDERS);
+    expect(providerOptions('')).toEqual(PROVIDERS);
+  });
+  it('prepends a legacy provider (ollama) so an edited row shows its real value', () => {
+    expect(providerOptions('ollama')).toEqual(['ollama', 'openai', 'anthropic', 'custom']);
   });
 });
 

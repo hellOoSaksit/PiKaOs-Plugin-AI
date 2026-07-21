@@ -1,17 +1,17 @@
 /* AI-config screen — the shared Table primitive's grid (styles/rbac.css `.utable`) is tuned for the
-   auth users table's SIX columns; this screen has FIVE (name · provider · model · key · actions), so
+   auth users table; this screen has SIX columns (name · provider · model · key · test · actions), so
    without an override the cells inherit the wrong track sizes (model too narrow → the id wraps, the
-   action cell too tight → the buttons stack). Scope a 5-track grid + balance the type so the row reads
+   action cell too tight → the buttons stack). Scope a 6-track grid + balance the type so the row reads
    as one line. Two-class selector out-specifies the bare `.utable` rule. */
 .llm-conn-table .utable-th,
 .llm-conn-table .utable-tr {
   grid-template-columns: minmax(150px, 1.5fr) 140px minmax(130px, 1fr) 100px 128px auto;
 }
 
-/* Test-connection status pill — a badge that reads its result on hover (Tooltip). Keyboard-reachable
-   (tabIndex on the span) so the tip shows on focus too. */
+/* Test-connection status pill — a badge that shows its result on hover/focus (Tooltip) AND is the
+   re-test control (role=button, click / Enter / Space re-probes). Keyboard-reachable via tabIndex. */
 .llm-conn-table .llm-test-pill {
-  cursor: default;
+  cursor: pointer;
   outline: none;
 }
 .llm-conn-table .llm-test-pill:focus-visible {

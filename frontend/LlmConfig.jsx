@@ -6,7 +6,7 @@ import React from 'react';
 const { useState, useEffect, useCallback } = React;
 import { Button, Field, Modal, Panel, PageHead, Table, Empty, Tooltip } from '../../components/ui';
 import { Select } from '../../components/ui/Dropdown.jsx';
-import { PROVIDERS, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
+import { PROVIDERS, providerOptions, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
 import './llm-config.css';
 
 const EMPTY_FORM = { name: '', provider: 'openai', model: '', base_url: '', api_key: '' };
@@ -84,9 +84,14 @@ export function LlmConfig({ ctx }) {
     { key: 'test', header: t('llmcfg.test.col'), render: (c) => {
       const r = tests[c.id];
       if (r && !r.loading) {
+        // the pill IS the re-test control — click / Enter / Space re-probes (a fixed key/endpoint
+        // must be verifiable without a full reload). Tooltip localizes the last result by category.
+        const retest = () => { if (!busy) testConn(c); };
         return (
           <Tooltip label={testLabel(r)}>
-            <span className={`badge ${r.ok ? 'on' : 'warn'} llm-test-pill`} data-no-lex tabIndex={0}>
+            <span className={`badge ${r.ok ? 'on' : 'warn'} llm-test-pill`} data-no-lex tabIndex={0}
+              role="button" aria-label={`${testLabel(r)} — ${t('llmcfg.test.btn')}`} aria-disabled={busy}
+              onClick={retest} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); retest(); } }}>
               <span className="dot" />{r.ok ? t('llmcfg.test.ready') : t('llmcfg.test.notReady')}
             </span>
           </Tooltip>
@@ -149,7 +154,7 @@ export function LlmConfig({ ctx }) {
             value={form.data.name} onChange={setF('name')} />
           <Field label={t('llmcfg.provider')}>
             <Select block value={form.data.provider}
-              options={PROVIDERS.map((p) => ({ value: p, label: t('llmcfg.provider.' + p) }))}
+              options={providerOptions(form.data.provider).map((p) => ({ value: p, label: t('llmcfg.provider.' + p) }))}
               onChange={(v) => setForm((f) => ({ ...f, data: { ...f.data, provider: v } }))} />
           </Field>
           <Field id="llm-model" label={t('llmcfg.model')} value={form.data.model} onChange={setF('model')} />
