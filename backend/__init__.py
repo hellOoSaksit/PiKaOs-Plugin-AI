@@ -11,7 +11,7 @@ Contracts (contracts.py):
   - **consumes `knowledge.Retriever`** (optional) — resolved at `boot()`; None when knowledge is off.
 
 Package surface the Loader looks for (plugin-architecture.md §5/§10):
-  router    — mounted when enabled (WS `/ws` + `/api/llm-config`); aggregated below
+  router    — mounted when enabled (WS `/ws/ai` + `/api/ai/llm/*`); aggregated below
   register  — binds `ai.LLM` into the DI container
   boot      — wires the engine runtime (LLM provider + stub tools + optional retriever)
   jobs      — the `agent_run` arq job the worker runs when this plugin is enabled
@@ -26,7 +26,8 @@ from .llm_config import router as _llm_router
 from .ws import router as _ws_router
 
 # One aggregated router the Loader mounts (the loader mounts a single `router` per plugin). Sub-router
-# prefixes are preserved: `/ws` (WebSocket) + `/api/llm-config` (+ its roles router).
+# prefixes are preserved: `/ws/ai` (WebSocket) + `/api/ai/llm/*` (connections + roles). All paths carry
+# the `/ai` segment — §6 namespacing; the manifest `routes` list must declare them or nothing mounts.
 router = APIRouter()
 router.include_router(_ws_router)
 router.include_router(_llm_router)

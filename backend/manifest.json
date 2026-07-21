@@ -1,7 +1,7 @@
 {
   "id": "ai",
   "name": "AI / Agent runtime",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "coreVersion": "^0.1.0",
   "kind": "capability",
   "dependencies": [
@@ -109,6 +109,9 @@
       "name_en": "Assign LLM to system roles"
     }
   ],
-  "routes": [],
+  "routes": [
+    "/api/ai",
+    "/ws/ai"
+  ],
   "migrations": "./backend/migrate.py"
 }

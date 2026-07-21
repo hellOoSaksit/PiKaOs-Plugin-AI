@@ -145,3 +145,12 @@ class AnthropicProvider:
             resp = await client.post("/v1/messages", json=body, headers=headers)
             resp.raise_for_status()
             return parse_anthropic_response(resp.json())
+
+    async def probe(self, *, timeout: float = 5.0) -> dict:
+        """Cheap liveness/auth check for the Test-connection button — GET {base}/v1/models (no token
+        cost). base_url is the Anthropic root (no /v1). Returns a sanitized {ok, status, category, detail}."""
+        from . import llm_probe
+        return await llm_probe.run_probe(
+            method="GET", url=f"{self.base_url}/v1/models",
+            headers={"x-api-key": self.api_key, "anthropic-version": self.version},
+            timeout=timeout, transport=self._transport)

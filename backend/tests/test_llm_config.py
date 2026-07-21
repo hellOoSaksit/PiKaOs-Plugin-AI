@@ -161,3 +161,220 @@ def test_set_active_keeps_one_active():
             await c.commit()
         await eng.dispose()
     asyncio.run(cleanup())
+
+
+# --- custom (OpenAI-compatible) provider --------------------------------------
+
+
+def test_build_provider_custom_uses_openai_adapter():
+    row = _row(provider="custom", base_url="http://localhost:1234/v1/chat/completions",
+               model="qwen2.5", api_key_enc=None)
+    assert isinstance(svc.build_provider(row), OpenAIProvider)
+
+
+def test_build_provider_custom_keyless_never_leaks_env_key(monkeypatch):
+    """A keyless `custom` connection points at an admin-supplied endpoint (an arbitrary URL). Its
+    built provider must NOT fall back to the server's .env OpenAI key — that would ship the real key
+    to that endpoint (probe/inference `Authorization: Bearer <settings key>`). See CLAUDE.md rule 2."""
+    monkeypatch.setattr(settings, "openai_api_key", "sk-env-secret")
+    row = _row(provider="custom", base_url="http://untrusted.example/v1", api_key_enc=None)
+    prov = svc.build_provider(row)
+    assert prov.api_key != "sk-env-secret"   # empty/no key, not the .env fallback
+
+
+def test_create_custom_requires_base_url():
+    try:
+        asyncio.run(svc.create(None, name="lm", provider="custom", model="",
+                               base_url=None, api_key=None))
+        assert False, "expected BadProvider"
+    except svc.BadProvider:
+        pass
+
+
+# Test-on-save: create/update probe the config first (mock the probe so these stay offline unit tests).
+def _ok_probe(captured=None):
+    captured = captured if captured is not None else {}
+    async def probe(provider, base_url, key, *, timeout=5.0):
+        captured.update(provider=provider, base_url=base_url, key=key)
+        return {"ok": True, "category": "ok", "detail": "", "status": 200, "latency_ms": 1}
+    return probe
+
+
+def _fail_probe(category="auth", detail="the API key was rejected"):
+    async def probe(provider, base_url, key, *, timeout=5.0):
+        return {"ok": False, "category": category, "detail": detail, "status": 401, "latency_ms": 1}
+    return probe
+
+
+def test_create_custom_with_base_url_ok(monkeypatch):
+    saved = {}
+
+    async def fake_ins(db, **kw):
+        saved.update(kw)
+        return _row(provider="custom", base_url=kw["base_url"], last_test_status=kw.get("last_test_status"))
+    monkeypatch.setattr(svc, "_probe_config", _ok_probe())
+    monkeypatch.setattr(repo, "insert_connection", fake_ins)
+    out = asyncio.run(svc.create(None, name="lm", provider="custom", model="qwen2.5",
+                                 base_url="http://localhost:1234/v1/chat/completions",
+                                 api_key=None))
+    assert out["provider"] == "custom"
+    assert out["last_test_status"] == "ok"           # persisted status comes back to the UI
+    assert saved["last_test_status"] == "ok"         # only "ok" rows are written
+
+
+def test_create_does_not_persist_when_test_fails(monkeypatch):
+    called = {"insert": False}
+
+    async def fake_ins(db, **kw):
+        called["insert"] = True
+        return _row()
+    monkeypatch.setattr(svc, "_probe_config", _fail_probe())
+    monkeypatch.setattr(repo, "insert_connection", fake_ins)
+    try:
+        asyncio.run(svc.create(None, name="x", provider="openai", model="", base_url=None, api_key="bad"))
+        assert False, "expected TestFailed"
+    except svc.TestFailed as e:
+        assert e.result["category"] == "auth" and "rejected" in e.result["detail"]
+    assert called["insert"] is False                 # nothing written on a failed test
+
+
+def test_update_tests_effective_config_with_stored_key_when_blank(monkeypatch):
+    # edit mode, api_key left blank → the test must run with the STORED (decrypted) key, never empty.
+    stored = _row(provider="openai", base_url="http://localhost:1234/v1",
+                  api_key_enc=crypto.encrypt("sk-stored"))
+    captured = {}
+
+    async def fake_get(db, cid):
+        return stored
+
+    async def fake_upd(db, cid, **kw):
+        return _row(provider="openai", last_test_status=kw.get("last_test_status"))
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    monkeypatch.setattr(repo, "update_connection", fake_upd)
+    monkeypatch.setattr(svc, "_probe_config", _ok_probe(captured))
+    out = asyncio.run(svc.update(None, uuid.uuid4(), name="renamed", api_key=None))
+    assert captured["key"] == "sk-stored"            # blank key → stored key used for the test
+    assert out["last_test_status"] == "ok"
+
+
+def test_update_does_not_persist_when_test_fails(monkeypatch):
+    stored = _row(provider="openai", base_url="http://localhost:1234/v1")
+    called = {"update": False}
+
+    async def fake_get(db, cid):
+        return stored
+
+    async def fake_upd(db, cid, **kw):
+        called["update"] = True
+        return _row()
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    monkeypatch.setattr(repo, "update_connection", fake_upd)
+    monkeypatch.setattr(svc, "_probe_config", _fail_probe(category="timeout"))
+    try:
+        asyncio.run(svc.update(None, uuid.uuid4(), model="gpt-4o"))
+        assert False, "expected TestFailed"
+    except svc.TestFailed as e:
+        assert e.result["category"] == "timeout"
+    assert called["update"] is False
+
+
+def test_to_out_includes_last_test_status():
+    assert svc.to_out(_row(last_test_status="ok"))["last_test_status"] == "ok"
+    assert svc.to_out(_row())["last_test_status"] is None
+
+
+def test_update_to_custom_without_stored_base_url_rejected(monkeypatch):
+    async def fake_get(db, cid):
+        return _row(provider="ollama", base_url=None)
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    try:
+        asyncio.run(svc.update(None, uuid.uuid4(), provider="custom"))
+        assert False, "expected BadProvider"
+    except svc.BadProvider:
+        pass
+
+
+def test_update_to_custom_with_stored_base_url_ok(monkeypatch):
+    stored = _row(provider="ollama", base_url="http://localhost:11434/v1/chat/completions")
+
+    async def fake_get(db, cid):
+        return stored
+
+    async def fake_upd(db, cid, **kw):
+        return _row(provider="custom", base_url=stored.base_url)
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    monkeypatch.setattr(repo, "update_connection", fake_upd)
+    monkeypatch.setattr(svc, "_probe_config", _ok_probe())
+    out = asyncio.run(svc.update(None, uuid.uuid4(), provider="custom"))
+    assert out["provider"] == "custom"
+
+
+def test_update_clears_base_url_on_existing_custom_rejected(monkeypatch):
+    stored = _row(provider="custom", base_url="http://localhost:1234/v1/chat/completions")
+
+    async def fake_get(db, cid):
+        return stored
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    try:
+        asyncio.run(svc.update(None, uuid.uuid4(), base_url=""))   # provider omitted
+        assert False, "expected BadProvider"
+    except svc.BadProvider:
+        pass
+
+
+# --- manifest route declaration (mount gate) ----------------------------------
+#
+# UAT 2026-07-21 found the whole /api/llm surface silently unmounted: `routes: []` makes the
+# loader treat the plugin as "no HTTP surface" (modules.active_modules skips load_router), and a
+# declared route missing the `/ai` segment gets the plugin QUARANTINED by the §6 namespace gate.
+# Unit tests can't see either failure (they import the routers directly), so pin the manifest.
+
+
+def test_manifest_declares_namespaced_routes():
+    import json
+    from pathlib import Path
+
+    manifest = json.loads((Path(__file__).parent.parent / "manifest.json").read_text(encoding="utf-8"))
+    routes = manifest.get("routes", [])
+    assert routes, "routes must be non-empty or the loader never mounts this plugin's router"
+    for route in routes:
+        assert "/ai" in route, f"route '{route}' must carry the /ai segment (§6) or the plugin is quarantined"
+
+
+# --- role availability (owning module installed?) -----------------------------
+#
+# UAT 2026-07-21: the role panel offered binding for search/summarize/answer while the knowledge
+# (RAG) plugin wasn't installed — misleading. roles_out now reports each role's consumer plugin +
+# whether it is active, so the UI can disable the select and say "module not installed".
+
+
+def test_roles_out_marks_unavailable_when_consumer_missing(monkeypatch):
+    async def no_conns(db):
+        return []
+
+    async def no_bindings(db):
+        return {}
+    monkeypatch.setattr(repo, "list_connections", no_conns)
+    monkeypatch.setattr(role_repo, "list_bindings", no_bindings)
+    monkeypatch.setattr(svc, "_is_active", lambda pid: pid == "ai")   # knowledge NOT installed
+
+    out = asyncio.run(svc.roles_out(None))
+    by_role = {o["role"]: o for o in out}
+    assert by_role["engine"]["plugin"] == "ai" and by_role["engine"]["available"] is True
+    for r in ("search", "summarize", "answer"):
+        assert by_role[r]["plugin"] == "knowledge"
+        assert by_role[r]["available"] is False
+
+
+def test_roles_out_available_when_consumer_active(monkeypatch):
+    async def no_conns(db):
+        return []
+
+    async def no_bindings(db):
+        return {}
+    monkeypatch.setattr(repo, "list_connections", no_conns)
+    monkeypatch.setattr(role_repo, "list_bindings", no_bindings)
+    monkeypatch.setattr(svc, "_is_active", lambda pid: True)          # everything installed
+
+    out = asyncio.run(svc.roles_out(None))
+    assert all(o["available"] is True for o in out)

@@ -1,0 +1,82 @@
+/* AI-config screen — the shared Table primitive's grid (styles/rbac.css `.utable`) is tuned for the
+   auth users table; this screen has SIX columns (name · provider · model · key · test · actions), so
+   without an override the cells inherit the wrong track sizes (model too narrow → the id wraps, the
+   action cell too tight → the buttons stack). Scope a 6-track grid + balance the type so the row reads
+   as one line. Two-class selector out-specifies the bare `.utable` rule.
+   The header (.utable-th) and every row (.utable-tr) are SEPARATE grid containers, so any flexible
+   track (fr / auto) sizes independently per container — an `auto` actions track was 0px in the empty
+   header but ~147px in a body row, which changed the free space and pushed the header's fr columns
+   wider → header labels drifted right of their cells. Every track is therefore FIXED-width except the
+   two fr columns, whose free space is now identical in both grids, so headers and cells line up. */
+.llm-conn-table .utable-th,
+.llm-conn-table .utable-tr {
+  grid-template-columns: minmax(160px, 1.6fr) 130px minmax(120px, 1fr) 100px 120px 152px;
+}
+
+/* Name cell — the name ellipsises but the "active" badge keeps its size, so a long name stays on one
+   line (equal row heights) instead of wrapping and pushing the row taller. flex + min-width:0 lets the
+   text shrink to the … while the badge doesn't. */
+.llm-conn-table .conn-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.llm-conn-table .conn-name-tip { min-width: 0; overflow: hidden; }
+.llm-conn-table .conn-name-tip > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.llm-conn-table .conn-name > .badge { flex: 0 0 auto; }
+
+/* Test-connection status tag — server-driven (last_test_status), not a control. A passed row uses the
+   green `.badge.on` (with a dot); an untested (legacy) row uses the neutral badge. Testing happens on
+   save, so there is no per-row button. */
+.llm-conn-table .llm-test-tag { white-space: nowrap; }
+
+/* Provider cell — labels differ a lot in length; truncate to one line with … (full name on hover
+   via the Tooltip) so a long "กำหนดเอง (OpenAI-compatible)" doesn't wrap to 3 lines and make the row
+   taller than its neighbours. min-width:0 lets the grid item shrink to its fixed track so the inner
+   block can actually overflow-clip. */
+.llm-conn-table .prov-cell { min-width: 0; }
+.llm-conn-table .prov-tip { display: block; min-width: 0; max-width: 100%; }
+.llm-conn-table .prov-tip > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the model id is monospace — keep it on one line and a touch smaller so it sits level with the
+   surrounding sans text instead of looming larger than the name/provider. Clip an over-long id with …
+   too, so it can't spill past its track and skew the row height. */
+.llm-conn-table .llm-model {
+  font-size: 12.5px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* actions cell reuses auth's `.uc-act` (flex · gap · right-align); just centre the mixed
+   text-button ("ใช้ตัวนี้") + icon-buttons vertically so their baselines line up. */
+.llm-conn-table .uc-act {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* --- connection form modal --------------------------------------------------------------------- */
+
+/* Save-time test failure, shown inline in the form (the row was not saved). */
+.llm-form-err {
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--danger-ink, #b42318);
+  background: var(--danger-soft, rgba(220, 60, 50, .10));
+  border: 1px solid var(--danger-line, rgba(220, 60, 50, .28));
+}
+
+/* Give the fields room to breathe and separate the footer from the last field (was cramped).
+   Field's wrapper class is `.bf` (Input.jsx). */
+.llm-form-modal .bf { margin-bottom: 14px; }
+.llm-form-modal .foot { margin-top: 20px; }
+.llm-form-foot { display: flex; justify-content: flex-end; gap: 12px; }
