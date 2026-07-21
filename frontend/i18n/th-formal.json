@@ -45,6 +45,8 @@
     "llmcfg.role.summarize": "สรุปข้อมูล",
     "llmcfg.role.summarize.desc": "ย่อ/สรุปเอกสารยาว",
     "llmcfg.role.answer": "ตอบคำถาม (RAG)",
-    "llmcfg.role.answer.desc": "สังเคราะห์คำตอบจากคลังข้อมูลพร้อมอ้างอิงแหล่งที่มา"
+    "llmcfg.role.answer.desc": "สังเคราะห์คำตอบจากคลังข้อมูลพร้อมอ้างอิงแหล่งที่มา",
+    "llmcfg.roles.notInstalled": "ยังไม่ได้ติดตั้งโมดูล — ติดตั้งก่อนจึงจะกำหนดได้",
+    "route.llm-config.title": "ตั้งค่า AI"
   }
 }

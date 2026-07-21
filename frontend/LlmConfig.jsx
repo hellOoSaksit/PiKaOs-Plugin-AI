@@ -95,14 +95,20 @@ export function LlmConfig({ ctx }) {
 
       <Panel title={t('llmcfg.roles.title')}>
         <p className="muted">{t('llmcfg.roles.hint')}</p>
-        {roles.map((r) => (
-          <Field key={r.role} label={t('llmcfg.role.' + r.role)} hint={t('llmcfg.role.' + r.role + '.desc')}>
-            <Select block value={r.connection_id || ''} disabled={busy}
-              options={[{ value: '', label: t('llmcfg.roles.default') },
-                ...(conns || []).map((c) => ({ value: c.id, label: c.name }))]}
-              onChange={(v) => bindRole(r.role, v)} />
-          </Field>
-        ))}
+        {roles.map((r) => {
+          // Backend reports which plugin consumes the role + whether it's installed; a role whose
+          // module is absent can't be bound (disabled + red note) — offering it misleads the operator.
+          const missing = r.available === false;
+          return (
+            <Field key={r.role} label={t('llmcfg.role.' + r.role)} hint={t('llmcfg.role.' + r.role + '.desc')}
+              error={missing ? `${t('llmcfg.roles.notInstalled')} (${r.plugin})` : undefined}>
+              <Select block value={r.connection_id || ''} disabled={busy || missing}
+                options={[{ value: '', label: t('llmcfg.roles.default') },
+                  ...(conns || []).map((c) => ({ value: c.id, label: c.name }))]}
+                onChange={(v) => bindRole(r.role, v)} />
+            </Field>
+          );
+        })}
       </Panel>
 
       {form && (

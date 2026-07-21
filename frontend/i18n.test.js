@@ -19,6 +19,7 @@ const dynamicKeys = [
   ...PROVIDERS.map((p) => 'llmcfg.provider.' + p),
   ...ROLES.flatMap((r) => ['llmcfg.role.' + r, 'llmcfg.role.' + r + '.desc']),
   'nav.llm-config',                                          // the sidebar renders "nav." + route id
+  'route.llm-config.title',                                  // the topbar renders "route." + route id + ".title"
 ];
 
 describe('AI plugin i18n packs own every key the screen uses', () => {

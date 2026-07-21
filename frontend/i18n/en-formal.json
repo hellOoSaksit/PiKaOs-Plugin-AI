@@ -45,6 +45,8 @@
     "llmcfg.role.summarize": "Summarize",
     "llmcfg.role.summarize.desc": "Condense / summarize long documents",
     "llmcfg.role.answer": "Answer (RAG)",
-    "llmcfg.role.answer.desc": "Synthesize an answer from the codex with source citations"
+    "llmcfg.role.answer.desc": "Synthesize an answer from the codex with source citations",
+    "llmcfg.roles.notInstalled": "Module not installed — install it before assigning",
+    "route.llm-config.title": "AI Settings"
   }
 }

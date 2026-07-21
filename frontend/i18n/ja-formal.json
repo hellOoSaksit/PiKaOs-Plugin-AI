@@ -45,6 +45,8 @@
     "llmcfg.role.summarize": "要約",
     "llmcfg.role.summarize.desc": "長い文書の要約・凝縮",
     "llmcfg.role.answer": "回答 (RAG)",
-    "llmcfg.role.answer.desc": "出典付きでナレッジベースから回答を合成"
+    "llmcfg.role.answer.desc": "出典付きでナレッジベースから回答を合成",
+    "llmcfg.roles.notInstalled": "モジュール未インストール — 割り当てには先にインストールが必要",
+    "route.llm-config.title": "AI設定"
   }
 }

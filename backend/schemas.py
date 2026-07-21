@@ -44,3 +44,5 @@ class LlmRoleOut(BaseModel):
     role: str
     connection_id: uuid.UUID | None = None
     connection_name: str | None = None
+    plugin: str = "ai"                        # which plugin consumes this role (engine=ai, RAG trio=knowledge)
+    available: bool = True                    # False = that plugin isn't installed — UI disables binding

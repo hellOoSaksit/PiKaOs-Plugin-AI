@@ -31,6 +31,19 @@ PROVIDERS = ("ollama", "openai", "anthropic", "custom")
 # A role with no binding falls back to the active connection — so "engine" works out of the box.
 ROLES = ("engine", "search", "summarize", "answer")
 
+# Which plugin actually consumes each role (engine = this plugin's agent loop; the RAG trio belongs
+# to knowledge). roles_out reports it + whether that plugin is active so the UI can disable binding
+# for a role whose consumer isn't installed (UAT 2026-07-21: offering "search/RAG" with no knowledge
+# plugin misled the operator). A future role registered by another plugin extends this map.
+ROLE_CONSUMERS = {"engine": "ai", "search": "knowledge", "summarize": "knowledge", "answer": "knowledge"}
+
+
+def _is_active(plugin_id: str) -> bool:
+    """Live is-this-plugin-mounted check — kernel registry seam (same one redis/worker.py uses).
+    Wrapped so tests monkeypatch it without importing app.modules."""
+    from ...modules import is_module_active
+    return is_module_active(plugin_id)
+
 
 class NotFound(Exception):
     """No connection with that id."""
@@ -115,6 +128,18 @@ async def activate(db, cid: uuid.UUID) -> dict:
 # --- per-system role assignment (which connection a feature uses) ------------
 
 
+def _role_entry(role: str, conn) -> dict:
+    """One role row: its binding + which plugin consumes it + whether that plugin is installed."""
+    plugin = ROLE_CONSUMERS.get(role, "ai")
+    return {
+        "role": role,
+        "connection_id": conn.id if conn else None,            # drop dangling ids (deleted conn)
+        "connection_name": conn.name if conn else None,
+        "plugin": plugin,
+        "available": _is_active(plugin),
+    }
+
+
 async def roles_out(db) -> list[dict]:
     """One entry per known role, with its current binding (connection unbound → null)."""
     conns = {r.id: r for r in await repo.list_connections(db)}
@@ -122,12 +147,7 @@ async def roles_out(db) -> list[dict]:
     out = []
     for role in ROLES:
         cid = bound.get(role)
-        conn = conns.get(cid) if cid else None
-        out.append({
-            "role": role,
-            "connection_id": conn.id if conn else None,        # drop dangling ids (deleted conn)
-            "connection_name": conn.name if conn else None,
-        })
+        out.append(_role_entry(role, conns.get(cid) if cid else None))
     return out
 
 
@@ -144,8 +164,7 @@ async def set_role(db, role: str, connection_id: uuid.UUID | None) -> dict:
             raise NotFound
         await role_repo.set_binding(db, role, connection_id)
     _invalidate()
-    return {"role": role, "connection_id": conn.id if conn else None,
-            "connection_name": conn.name if conn else None}
+    return _role_entry(role, conn)
 
 
 # --- resolving the active connection into a live provider (worker side) ------

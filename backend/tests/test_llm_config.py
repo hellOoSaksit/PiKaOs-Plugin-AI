@@ -246,3 +246,42 @@ def test_manifest_declares_namespaced_routes():
     assert routes, "routes must be non-empty or the loader never mounts this plugin's router"
     for route in routes:
         assert "/ai" in route, f"route '{route}' must carry the /ai segment (§6) or the plugin is quarantined"
+
+
+# --- role availability (owning module installed?) -----------------------------
+#
+# UAT 2026-07-21: the role panel offered binding for search/summarize/answer while the knowledge
+# (RAG) plugin wasn't installed — misleading. roles_out now reports each role's consumer plugin +
+# whether it is active, so the UI can disable the select and say "module not installed".
+
+
+def test_roles_out_marks_unavailable_when_consumer_missing(monkeypatch):
+    async def no_conns(db):
+        return []
+
+    async def no_bindings(db):
+        return {}
+    monkeypatch.setattr(repo, "list_connections", no_conns)
+    monkeypatch.setattr(role_repo, "list_bindings", no_bindings)
+    monkeypatch.setattr(svc, "_is_active", lambda pid: pid == "ai")   # knowledge NOT installed
+
+    out = asyncio.run(svc.roles_out(None))
+    by_role = {o["role"]: o for o in out}
+    assert by_role["engine"]["plugin"] == "ai" and by_role["engine"]["available"] is True
+    for r in ("search", "summarize", "answer"):
+        assert by_role[r]["plugin"] == "knowledge"
+        assert by_role[r]["available"] is False
+
+
+def test_roles_out_available_when_consumer_active(monkeypatch):
+    async def no_conns(db):
+        return []
+
+    async def no_bindings(db):
+        return {}
+    monkeypatch.setattr(repo, "list_connections", no_conns)
+    monkeypatch.setattr(role_repo, "list_bindings", no_bindings)
+    monkeypatch.setattr(svc, "_is_active", lambda pid: True)          # everything installed
+
+    out = asyncio.run(svc.roles_out(None))
+    assert all(o["available"] is True for o in out)
