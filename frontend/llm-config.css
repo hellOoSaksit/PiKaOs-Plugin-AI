@@ -19,10 +19,27 @@
   border-radius: 999px;
 }
 
+/* Provider cell — labels differ a lot in length; truncate to one line with … (full name on hover
+   via the Tooltip) so a long "กำหนดเอง (OpenAI-compatible)" doesn't wrap to 3 lines and make the row
+   taller than its neighbours. min-width:0 lets the grid item shrink to its fixed track so the inner
+   block can actually overflow-clip. */
+.llm-conn-table .prov-cell { min-width: 0; }
+.llm-conn-table .prov-tip { display: block; min-width: 0; max-width: 100%; }
+.llm-conn-table .prov-tip > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* the model id is monospace — keep it on one line and a touch smaller so it sits level with the
-   surrounding sans text instead of looming larger than the name/provider. */
+   surrounding sans text instead of looming larger than the name/provider. Clip an over-long id with …
+   too, so it can't spill past its track and skew the row height. */
 .llm-conn-table .llm-model {
   font-size: 12.5px;
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

@@ -74,7 +74,12 @@ export function LlmConfig({ ctx }) {
         {c.is_active && <span className="badge on" style={{ marginLeft: 8 }} data-no-lex>{t('llmcfg.active')}</span>}
       </span>
     ) },
-    { key: 'provider', header: t('llmcfg.provider'), render: (c) => <span data-no-lex>{t('llmcfg.provider.' + c.provider)}</span> },
+    { key: 'provider', header: t('llmcfg.provider'), className: 'prov-cell', render: (c) => {
+      // Provider labels vary in length ("Anthropic" vs "กำหนดเอง (OpenAI-compatible)"); truncate to
+      // one line with … so every row is the same height, and reveal the full name on hover/focus.
+      const label = t('llmcfg.provider.' + c.provider);
+      return <Tooltip label={label} className="prov-tip"><span data-no-lex>{label}</span></Tooltip>;
+    } },
     { key: 'model', header: t('llmcfg.model'), render: (c) => <span className="mono faint llm-model" data-no-lex>{c.model || '—'}</span> },
     { key: 'key', header: t('llmcfg.apiKey'), render: (c) => (
       <span className={`badge ${c.api_key_set ? 'on' : ''}`} data-no-lex>
