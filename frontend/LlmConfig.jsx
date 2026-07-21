@@ -7,8 +7,9 @@ const { useState, useEffect, useCallback } = React;
 import { Button, Field, Modal, Panel, PageHead, Table, Empty } from '../../components/ui';
 import { Select } from '../../components/ui/Dropdown.jsx';
 import { PROVIDERS, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
+import './llm-config.css';
 
-const EMPTY_FORM = { name: '', provider: 'ollama', model: '', base_url: '', api_key: '' };
+const EMPTY_FORM = { name: '', provider: 'openai', model: '', base_url: '', api_key: '' };
 
 export function LlmConfig({ ctx }) {
   const { t, api } = ctx;
@@ -63,14 +64,14 @@ export function LlmConfig({ ctx }) {
       </span>
     ) },
     { key: 'provider', header: t('llmcfg.provider'), render: (c) => <span data-no-lex>{t('llmcfg.provider.' + c.provider)}</span> },
-    { key: 'model', header: t('llmcfg.model'), render: (c) => <span className="mono faint" data-no-lex>{c.model || '—'}</span> },
+    { key: 'model', header: t('llmcfg.model'), render: (c) => <span className="mono faint llm-model" data-no-lex>{c.model || '—'}</span> },
     { key: 'key', header: t('llmcfg.apiKey'), render: (c) => (
       <span className={`badge ${c.api_key_set ? 'on' : ''}`} data-no-lex>
         {c.api_key_set ? t('llmcfg.keyStored') : t('llmcfg.keyNone')}
       </span>
     ) },
     { key: 'act', header: '', render: (c) => (
-      <span onClick={(e) => e.stopPropagation()}>
+      <span className="uc-act" onClick={(e) => e.stopPropagation()}>
         {!c.is_active && <Button size="sm" disabled={busy} onClick={() => activate(c)}>{t('llmcfg.activate')}</Button>}
         <Button size="sm" icon="edit" label={t('llmcfg.edit')} disabled={busy}
           onClick={() => setForm({ mode: 'edit', id: c.id, data: { name: c.name, provider: c.provider, model: c.model || '', base_url: c.base_url || '', api_key: '' } })} />
@@ -90,7 +91,7 @@ export function LlmConfig({ ctx }) {
       <Panel title={t('llmcfg.title')}>
         {conns === null ? <p className="muted">{t('llmcfg.loading')}</p>
           : conns.length === 0 ? <Empty title={t('llmcfg.empty')} />
-          : <Table columns={columns} rows={conns} />}
+          : <div className="llm-conn-table"><Table columns={columns} rows={conns} /></div>}
       </Panel>
 
       <Panel title={t('llmcfg.roles.title')}>

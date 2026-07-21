@@ -1,12 +1,15 @@
 /* Pure form logic for the LLM-connections screen — no React, no fetch, so it tests as plain
-   functions (the repo has no DOM test renderer). Mirrors the desktop AI Console's provider
-   matrix so the two surfaces cannot drift: ollama keyless · openai/anthropic keyed ·
-   custom = OpenAI-compatible endpoint, baseUrl REQUIRED, key optional. */
+   functions (the repo has no DOM test renderer). Provider matrix mirrors the desktop AI Console:
+   openai/anthropic keyed · custom = OpenAI-compatible endpoint, baseUrl REQUIRED, key optional.
+   Ollama is intentionally NOT a picker option — a local/remote Ollama is reached through `custom`
+   at its own OpenAI-compatible /v1/chat/completions (same call the AI Console made). The backend
+   still accepts an `ollama` provider, and providerFields keeps handling it so a legacy stored
+   connection still edits correctly — only the NEW-connection dropdown drops it. */
 
-export const PROVIDERS = ['ollama', 'openai', 'anthropic', 'custom'];
+export const PROVIDERS = ['openai', 'anthropic', 'custom'];
 
 export function providerFields(provider) {
-  if (provider === 'ollama') return { baseUrl: 'optional', apiKey: 'hidden' };
+  if (provider === 'ollama') return { baseUrl: 'optional', apiKey: 'hidden' };   // legacy rows only
   if (provider === 'custom') return { baseUrl: 'required', apiKey: 'optional' };
   return { baseUrl: 'optional', apiKey: 'required' };          // openai | anthropic
 }

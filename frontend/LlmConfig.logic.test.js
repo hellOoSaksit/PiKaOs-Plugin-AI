@@ -2,13 +2,13 @@ import { describe, it, expect } from 'vitest';
 import { PROVIDERS, providerFields, canSave, toPayload } from './LlmConfig.logic.js';
 
 describe('PROVIDERS', () => {
-  it('matches the backend set, custom last', () => {
-    expect(PROVIDERS).toEqual(['ollama', 'openai', 'anthropic', 'custom']);
+  it('is the picker set (ollama dropped — reached via custom), custom last', () => {
+    expect(PROVIDERS).toEqual(['openai', 'anthropic', 'custom']);
   });
 });
 
 describe('providerFields', () => {
-  it('ollama is keyless', () => {
+  it('still maps ollama (legacy stored rows) as keyless', () => {
     expect(providerFields('ollama')).toEqual({ baseUrl: 'optional', apiKey: 'hidden' });
   });
   it('openai/anthropic need a key', () => {

@@ -1,0 +1,23 @@
+/* AI-config screen — the shared Table primitive's grid (styles/rbac.css `.utable`) is tuned for the
+   auth users table's SIX columns; this screen has FIVE (name · provider · model · key · actions), so
+   without an override the cells inherit the wrong track sizes (model too narrow → the id wraps, the
+   action cell too tight → the buttons stack). Scope a 5-track grid + balance the type so the row reads
+   as one line. Two-class selector out-specifies the bare `.utable` rule. */
+.llm-conn-table .utable-th,
+.llm-conn-table .utable-tr {
+  grid-template-columns: minmax(180px, 1.7fr) 150px minmax(150px, 1fr) 116px auto;
+}
+
+/* the model id is monospace — keep it on one line and a touch smaller so it sits level with the
+   surrounding sans text instead of looming larger than the name/provider. */
+.llm-conn-table .llm-model {
+  font-size: 12.5px;
+  white-space: nowrap;
+}
+
+/* actions cell reuses auth's `.uc-act` (flex · gap · right-align); just centre the mixed
+   text-button ("ใช้ตัวนี้") + icon-buttons vertically so their baselines line up. */
+.llm-conn-table .uc-act {
+  align-items: center;
+  flex-wrap: wrap;
+}
