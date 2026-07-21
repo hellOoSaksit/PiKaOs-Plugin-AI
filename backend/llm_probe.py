@@ -45,11 +45,6 @@ def assert_not_metadata(url: str) -> None:
 
 # --- result categorization: sanitized (class + short message), never the raw body -----------------
 
-_STATUS = {
-    "auth": (401, 403),
-    "not_found": (404,),
-}
-
 
 def categorize_status(status: int) -> tuple[str, str]:
     """Map an HTTP status to (category, short message). 2xx = ok."""
