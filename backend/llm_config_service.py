@@ -77,12 +77,16 @@ async def create(db, *, name: str, provider: str, model: str,
 async def update(db, cid: uuid.UUID, *, name=None, provider=None, model=None,
                  base_url=None, api_key=None) -> dict:
     _validate_provider(provider)
-    if provider == "custom" and not base_url:
-        # an update may switch provider without resending base_url — check the stored row
+    # Enforce custom-needs-base_url against the RESULTING state, not just the incoming fields:
+    # a PATCH may switch to custom without resending base_url, OR clear base_url on a row that is
+    # already custom (provider omitted). Either path must still end with a base_url.
+    if provider == "custom" or base_url is not None:
         cur = await repo.get_connection(db, cid)
         if cur is None:
             raise NotFound
-        if not cur.base_url:
+        eff_provider = provider if provider is not None else cur.provider
+        eff_base_url = base_url if base_url is not None else cur.base_url
+        if eff_provider == "custom" and not eff_base_url:
             raise BadProvider("custom provider requires base_url")
     # only re-encrypt when a new key is actually supplied; "" / None leaves it unchanged
     enc = crypto.encrypt(api_key) if api_key else None
@@ -159,8 +163,7 @@ def build_provider(row) -> object:
     if row.provider == "custom":
         # any OpenAI-compatible server (LM Studio, vLLM, llama.cpp, …) — reuses the OpenAI adapter,
         # same decision as the desktop AI Console's custom provider
-        return OpenAIProvider(api_key=key or None, base_url=row.base_url or None,
-                              model=row.model or None)
+        return OpenAIProvider(api_key=key or None, base_url=row.base_url or None, model=row.model or None)
     return StubLLMProvider()
 
 

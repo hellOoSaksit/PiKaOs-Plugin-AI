@@ -214,3 +214,16 @@ def test_update_to_custom_with_stored_base_url_ok(monkeypatch):
     monkeypatch.setattr(repo, "update_connection", fake_upd)
     out = asyncio.run(svc.update(None, uuid.uuid4(), provider="custom"))
     assert out["provider"] == "custom"
+
+
+def test_update_clears_base_url_on_existing_custom_rejected(monkeypatch):
+    stored = _row(provider="custom", base_url="http://localhost:1234/v1/chat/completions")
+
+    async def fake_get(db, cid):
+        return stored
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    try:
+        asyncio.run(svc.update(None, uuid.uuid4(), base_url=""))   # provider omitted
+        assert False, "expected BadProvider"
+    except svc.BadProvider:
+        pass
