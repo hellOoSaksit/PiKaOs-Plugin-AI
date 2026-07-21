@@ -1,5 +1,5 @@
 /* AI plugin — admin LLM-connections screen (connections CRUD + activate + per-role binding).
-   Thin client over the plugin's own /api/llm/* routes; authz is server-side (llm.view /
+   Thin client over the plugin's own /api/ai/llm/* routes; authz is server-side (llm.view /
    llm.manage / llm.assign) — the nav gate on llm.view is UI honesty, not enforcement.
    The API key is write-only: the UI only ever sees api_key_set. */
 import React from 'react';
@@ -20,7 +20,7 @@ export function LlmConfig({ ctx }) {
 
   const load = useCallback(() => {
     setError(null);
-    Promise.all([api.raw('/llm/connections'), api.raw('/llm/roles')])
+    Promise.all([api.raw('/ai/llm/connections'), api.raw('/ai/llm/roles')])
       .then(([cs, rs]) => {
         setConns(Array.isArray(cs) ? cs : []);
         setRoles(Array.isArray(rs) ? rs : []);
@@ -37,20 +37,20 @@ export function LlmConfig({ ctx }) {
       .finally(() => setBusy(false));
   };
 
-  const activate = (c) => act(() => api.raw(`/llm/connections/${c.id}/activate`, { method: 'POST' }));
+  const activate = (c) => act(() => api.raw(`/ai/llm/connections/${c.id}/activate`, { method: 'POST' }));
   const remove = async (c) => {
     if (await window.uiConfirm({ title: t('llmcfg.delConfirm'), danger: true })) {
-      act(() => api.raw(`/llm/connections/${c.id}`, { method: 'DELETE' }));
+      act(() => api.raw(`/ai/llm/connections/${c.id}`, { method: 'DELETE' }));
     }
   };
   const save = () => act(() => {
     const body = toPayload(form.data);
     return form.mode === 'edit'
-      ? api.raw(`/llm/connections/${form.id}`, { method: 'PATCH', body })
-      : api.raw('/llm/connections', { method: 'POST', body });
+      ? api.raw(`/ai/llm/connections/${form.id}`, { method: 'PATCH', body })
+      : api.raw('/ai/llm/connections', { method: 'POST', body });
   });
   const bindRole = (role, cid) =>
-    act(() => api.raw(`/llm/roles/${role}`, { method: 'PUT', body: { connection_id: cid || null } }));
+    act(() => api.raw(`/ai/llm/roles/${role}`, { method: 'PUT', body: { connection_id: cid || null } }));
 
   const setF = (k) => (e) => setForm((f) => ({ ...f, data: { ...f.data, [k]: e.target.value } }));
   const fields = form ? providerFields(form.data.provider) : null;

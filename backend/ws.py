@@ -55,7 +55,7 @@ async def _can_view_task(user_id: str, task_id: str) -> bool:
         return await task_service.can_view(db, user_id, task_id)
 
 
-@router.websocket("/ws")
+@router.websocket("/ws/ai")
 async def ws_endpoint(websocket: WebSocket) -> None:
     await websocket.accept()
     user_id = await _authenticate(websocket)

@@ -109,6 +109,9 @@
       "name_en": "Assign LLM to system roles"
     }
   ],
-  "routes": [],
+  "routes": [
+    "/api/ai",
+    "/ws/ai"
+  ],
   "migrations": "./backend/migrate.py"
 }

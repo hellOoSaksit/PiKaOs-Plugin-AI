@@ -1,5 +1,5 @@
 """AI plugin request/response schemas — the LLM-connection config surface (moved from Core schemas.py
-in the AI extraction). Drives `/api/llm-config`."""
+in the AI extraction). Drives `/api/ai/llm/connections` + `/api/ai/llm/roles`."""
 from __future__ import annotations
 
 import uuid

@@ -227,3 +227,22 @@ def test_update_clears_base_url_on_existing_custom_rejected(monkeypatch):
         assert False, "expected BadProvider"
     except svc.BadProvider:
         pass
+
+
+# --- manifest route declaration (mount gate) ----------------------------------
+#
+# UAT 2026-07-21 found the whole /api/llm surface silently unmounted: `routes: []` makes the
+# loader treat the plugin as "no HTTP surface" (modules.active_modules skips load_router), and a
+# declared route missing the `/ai` segment gets the plugin QUARANTINED by the §6 namespace gate.
+# Unit tests can't see either failure (they import the routers directly), so pin the manifest.
+
+
+def test_manifest_declares_namespaced_routes():
+    import json
+    from pathlib import Path
+
+    manifest = json.loads((Path(__file__).parent.parent / "manifest.json").read_text(encoding="utf-8"))
+    routes = manifest.get("routes", [])
+    assert routes, "routes must be non-empty or the loader never mounts this plugin's router"
+    for route in routes:
+        assert "/ai" in route, f"route '{route}' must carry the /ai segment (§6) or the plugin is quarantined"

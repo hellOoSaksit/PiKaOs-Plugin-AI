@@ -1,4 +1,5 @@
-"""LLM provider config HTTP routes (no-hardcode) — `/api/llm/connections`.
+"""LLM provider config HTTP routes (no-hardcode) — `/api/ai/llm/connections` (§6: every route
+this plugin owns is namespaced under `/ai`, or the loader quarantines the whole plugin).
 
 Admin-managed: which provider (Local/Ollama vs OpenAI vs Anthropic), model, endpoint, and key
 the engine uses — set from the UI instead of `.env`. Permission split: reads require `llm.view`,
@@ -24,8 +25,8 @@ from .schemas import (
 )
 from . import llm_config_service as svc
 
-router = APIRouter(prefix="/api/llm/connections", tags=["llm-config"])
-roles_router = APIRouter(prefix="/api/llm/roles", tags=["llm-config"])
+router = APIRouter(prefix="/api/ai/llm/connections", tags=["llm-config"])
+roles_router = APIRouter(prefix="/api/ai/llm/roles", tags=["llm-config"])
 
 
 def _bad(e: svc.BadProvider) -> HTTPException:
