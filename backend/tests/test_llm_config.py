@@ -191,14 +191,96 @@ def test_create_custom_requires_base_url():
         pass
 
 
+# Test-on-save: create/update probe the config first (mock the probe so these stay offline unit tests).
+def _ok_probe(captured=None):
+    captured = captured if captured is not None else {}
+    async def probe(provider, base_url, key, *, timeout=5.0):
+        captured.update(provider=provider, base_url=base_url, key=key)
+        return {"ok": True, "category": "ok", "detail": "", "status": 200, "latency_ms": 1}
+    return probe
+
+
+def _fail_probe(category="auth", detail="the API key was rejected"):
+    async def probe(provider, base_url, key, *, timeout=5.0):
+        return {"ok": False, "category": category, "detail": detail, "status": 401, "latency_ms": 1}
+    return probe
+
+
 def test_create_custom_with_base_url_ok(monkeypatch):
+    saved = {}
+
     async def fake_ins(db, **kw):
-        return _row(provider="custom", base_url=kw["base_url"])
+        saved.update(kw)
+        return _row(provider="custom", base_url=kw["base_url"], last_test_status=kw.get("last_test_status"))
+    monkeypatch.setattr(svc, "_probe_config", _ok_probe())
     monkeypatch.setattr(repo, "insert_connection", fake_ins)
     out = asyncio.run(svc.create(None, name="lm", provider="custom", model="qwen2.5",
                                  base_url="http://localhost:1234/v1/chat/completions",
                                  api_key=None))
     assert out["provider"] == "custom"
+    assert out["last_test_status"] == "ok"           # persisted status comes back to the UI
+    assert saved["last_test_status"] == "ok"         # only "ok" rows are written
+
+
+def test_create_does_not_persist_when_test_fails(monkeypatch):
+    called = {"insert": False}
+
+    async def fake_ins(db, **kw):
+        called["insert"] = True
+        return _row()
+    monkeypatch.setattr(svc, "_probe_config", _fail_probe())
+    monkeypatch.setattr(repo, "insert_connection", fake_ins)
+    try:
+        asyncio.run(svc.create(None, name="x", provider="openai", model="", base_url=None, api_key="bad"))
+        assert False, "expected TestFailed"
+    except svc.TestFailed as e:
+        assert e.result["category"] == "auth" and "rejected" in e.result["detail"]
+    assert called["insert"] is False                 # nothing written on a failed test
+
+
+def test_update_tests_effective_config_with_stored_key_when_blank(monkeypatch):
+    # edit mode, api_key left blank → the test must run with the STORED (decrypted) key, never empty.
+    stored = _row(provider="openai", base_url="http://localhost:1234/v1",
+                  api_key_enc=crypto.encrypt("sk-stored"))
+    captured = {}
+
+    async def fake_get(db, cid):
+        return stored
+
+    async def fake_upd(db, cid, **kw):
+        return _row(provider="openai", last_test_status=kw.get("last_test_status"))
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    monkeypatch.setattr(repo, "update_connection", fake_upd)
+    monkeypatch.setattr(svc, "_probe_config", _ok_probe(captured))
+    out = asyncio.run(svc.update(None, uuid.uuid4(), name="renamed", api_key=None))
+    assert captured["key"] == "sk-stored"            # blank key → stored key used for the test
+    assert out["last_test_status"] == "ok"
+
+
+def test_update_does_not_persist_when_test_fails(monkeypatch):
+    stored = _row(provider="openai", base_url="http://localhost:1234/v1")
+    called = {"update": False}
+
+    async def fake_get(db, cid):
+        return stored
+
+    async def fake_upd(db, cid, **kw):
+        called["update"] = True
+        return _row()
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    monkeypatch.setattr(repo, "update_connection", fake_upd)
+    monkeypatch.setattr(svc, "_probe_config", _fail_probe(category="timeout"))
+    try:
+        asyncio.run(svc.update(None, uuid.uuid4(), model="gpt-4o"))
+        assert False, "expected TestFailed"
+    except svc.TestFailed as e:
+        assert e.result["category"] == "timeout"
+    assert called["update"] is False
+
+
+def test_to_out_includes_last_test_status():
+    assert svc.to_out(_row(last_test_status="ok"))["last_test_status"] == "ok"
+    assert svc.to_out(_row())["last_test_status"] is None
 
 
 def test_update_to_custom_without_stored_base_url_rejected(monkeypatch):
@@ -222,6 +304,7 @@ def test_update_to_custom_with_stored_base_url_ok(monkeypatch):
         return _row(provider="custom", base_url=stored.base_url)
     monkeypatch.setattr(repo, "get_connection", fake_get)
     monkeypatch.setattr(repo, "update_connection", fake_upd)
+    monkeypatch.setattr(svc, "_probe_config", _ok_probe())
     out = asyncio.run(svc.update(None, uuid.uuid4(), provider="custom"))
     assert out["provider"] == "custom"
 

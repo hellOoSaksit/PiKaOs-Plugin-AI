@@ -39,6 +39,11 @@ class LlmConnection(Base):
     base_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     api_key_enc: Mapped[str | None] = mapped_column(String(1024), nullable=True)  # Fernet ciphertext
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Last save-time connection test. A row is only persisted once its test passes, so this is "ok"
+    # for anything created/edited under the test-on-save flow; NULL means "not tested yet" (a legacy
+    # row from before the flow). Failures never persist, so "failed" is never stored here. The UI reads
+    # this from the server (not local state) to render the status tag.
+    last_test_status: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -30,10 +30,11 @@ async def get_active(db: AsyncSession) -> LlmConnection | None:
 
 async def insert_connection(
     db: AsyncSession, *, name: str, provider: str, model: str,
-    base_url: str | None, api_key_enc: str | None,
+    base_url: str | None, api_key_enc: str | None, last_test_status: str | None = None,
 ) -> LlmConnection:
     row = LlmConnection(id=uuid.uuid4(), name=name, provider=provider, model=model,
-                        base_url=base_url, api_key_enc=api_key_enc, is_active=False)
+                        base_url=base_url, api_key_enc=api_key_enc, is_active=False,
+                        last_test_status=last_test_status)
     db.add(row)
     await db.commit()
     await db.refresh(row)

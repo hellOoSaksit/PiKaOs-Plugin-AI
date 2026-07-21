@@ -57,6 +57,15 @@ class BadRole(Exception):
     """Role isn't one of ROLES."""
 
 
+class TestFailed(Exception):
+    """Save-time connection test did not pass — the row is NOT persisted. Carries the sanitized probe
+    result ({ok, category, detail, status, latency_ms}) so the route can surface the reason to the UI."""
+
+    def __init__(self, result: dict):
+        self.result = result
+        super().__init__(result.get("detail") or result.get("category") or "connection test failed")
+
+
 def _validate_provider(provider: str | None) -> None:
     if provider is not None and provider not in PROVIDERS:
         raise BadProvider(f"provider must be one of {PROVIDERS}")
@@ -68,6 +77,7 @@ def to_out(row) -> dict:
         "id": row.id, "name": row.name, "provider": row.provider, "model": row.model,
         "base_url": row.base_url, "is_active": row.is_active, "created_at": row.created_at,
         "api_key_set": bool(row.api_key_enc),
+        "last_test_status": getattr(row, "last_test_status", None),   # "ok" | None (server-driven tag)
     }
 
 
@@ -77,34 +87,45 @@ async def list_out(db) -> list[dict]:
 
 async def create(db, *, name: str, provider: str, model: str,
                  base_url: str | None, api_key: str | None) -> dict:
+    """Test-on-save: the connection is probed FIRST and only persisted once the test passes (status
+    "ok"). A failing test raises TestFailed with the sanitized reason and writes NOTHING — so the list
+    never shows a connection that doesn't work."""
     _validate_provider(provider)
     if provider == "custom" and not base_url:
         raise BadProvider("custom provider requires base_url")
+    result = await _probe_config(provider, base_url, api_key or "")
+    if not result["ok"]:
+        raise TestFailed(result)
     enc = crypto.encrypt(api_key) if api_key else None
     row = await repo.insert_connection(db, name=name, provider=provider, model=model or "",
-                                       base_url=base_url or None, api_key_enc=enc)
+                                       base_url=base_url or None, api_key_enc=enc, last_test_status="ok")
     _invalidate()
     return to_out(row)
 
 
 async def update(db, cid: uuid.UUID, *, name=None, provider=None, model=None,
                  base_url=None, api_key=None) -> dict:
+    """Test-on-save (edit): probe the RESULTING config first, persist the change only if it passes.
+    A blank api_key means "keep the stored key", so the test uses the stored key (never re-sent by the
+    client) — the effective config is what the worker would actually run."""
     _validate_provider(provider)
-    # Enforce custom-needs-base_url against the RESULTING state, not just the incoming fields:
-    # a PATCH may switch to custom without resending base_url, OR clear base_url on a row that is
-    # already custom (provider omitted). Either path must still end with a base_url.
-    if provider == "custom" or base_url is not None:
-        cur = await repo.get_connection(db, cid)
-        if cur is None:
-            raise NotFound
-        eff_provider = provider if provider is not None else cur.provider
-        eff_base_url = base_url if base_url is not None else cur.base_url
-        if eff_provider == "custom" and not eff_base_url:
-            raise BadProvider("custom provider requires base_url")
+    cur = await repo.get_connection(db, cid)
+    if cur is None:
+        raise NotFound
+    # Effective (resulting) config: an omitted field keeps the stored value; a blank key keeps the
+    # stored (decrypted) key. Custom must still end with a base_url.
+    eff_provider = provider if provider is not None else cur.provider
+    eff_base_url = base_url if base_url is not None else cur.base_url
+    eff_key = api_key if api_key else crypto.decrypt(cur.api_key_enc or "")
+    if eff_provider == "custom" and not eff_base_url:
+        raise BadProvider("custom provider requires base_url")
+    result = await _probe_config(eff_provider, eff_base_url, eff_key)
+    if not result["ok"]:
+        raise TestFailed(result)
     # only re-encrypt when a new key is actually supplied; "" / None leaves it unchanged
     enc = crypto.encrypt(api_key) if api_key else None
     row = await repo.update_connection(db, cid, name=name, provider=provider, model=model,
-                                       base_url=base_url, api_key_enc=enc)
+                                       base_url=base_url, api_key_enc=enc, last_test_status="ok")
     if row is None:
         raise NotFound
     _invalidate()
@@ -170,25 +191,32 @@ async def set_role(db, role: str, connection_id: uuid.UUID | None) -> dict:
 # --- test connection (probe a stored connection's endpoint + key) ------------
 
 
-async def test_connection(db, cid: uuid.UUID, *, timeout: float = 5.0) -> dict:
-    """Probe a SAVED connection (endpoint + stored key) so an admin sees ready/not-ready without
-    spending completion tokens. The key stays server-side (never re-sent by the client). base_url is
-    SSRF-checked for the cloud-metadata range only (local LLMs are allowed). Returns a sanitized
-    {ok, category, detail, status, latency_ms}."""
+async def _probe_config(provider: str, base_url: str | None, key: str, *, timeout: float = 5.0) -> dict:
+    """Probe a raw connection config (provider + endpoint + already-decrypted key) without persisting
+    anything. base_url is SSRF-checked for the cloud-metadata range only (local LLMs are allowed).
+    Returns a sanitized {ok, category, detail, status, latency_ms} — never the key or a raw body.
+    Shared by the save-time test (create/update) and the stored-connection test."""
     from . import llm_probe
-    row = await repo.get_connection(db, cid)
-    if row is None:
-        raise NotFound
-    eff_base_url = row.base_url or _default_base_url(row.provider)
+    eff_base_url = base_url or _default_base_url(provider)
     try:
         llm_probe.assert_not_metadata(eff_base_url)
     except llm_probe.BlockedURL as e:
         return {"ok": False, "category": "blocked", "detail": str(e), "status": None, "latency_ms": None}
-    provider = build_provider(row)
+    prov = _build_provider_raw(provider, base_url, key)
     start = time.monotonic()
-    result = await provider.probe(timeout=timeout)
+    result = await prov.probe(timeout=timeout)
     result["latency_ms"] = int((time.monotonic() - start) * 1000)
     return result
+
+
+async def test_connection(db, cid: uuid.UUID, *, timeout: float = 5.0) -> dict:
+    """Probe a SAVED connection (endpoint + stored key) so an admin sees ready/not-ready without
+    spending completion tokens. The key stays server-side (never re-sent by the client)."""
+    row = await repo.get_connection(db, cid)
+    if row is None:
+        raise NotFound
+    return await _probe_config(row.provider, row.base_url, crypto.decrypt(row.api_key_enc or ""),
+                               timeout=timeout)
 
 
 def _default_base_url(provider: str) -> str:
@@ -205,19 +233,26 @@ def _default_base_url(provider: str) -> str:
 
 def build_provider(row) -> object:
     """Construct an LLMProvider from a connection row (decrypting its key)."""
-    key = crypto.decrypt(row.api_key_enc or "")
-    if row.provider == "ollama":
-        return OllamaProvider(base_url=row.base_url or None, model=row.model or None)
-    if row.provider == "openai":
-        return OpenAIProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
-    if row.provider == "anthropic":
-        return AnthropicProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
-    if row.provider == "custom":
+    return _build_provider_raw(row.provider, row.base_url, crypto.decrypt(row.api_key_enc or ""),
+                               model=row.model)
+
+
+def _build_provider_raw(provider: str, base_url: str | None, key: str, *, model: str | None = None) -> object:
+    """Construct an LLMProvider from raw config (already-decrypted key) — shared by build_provider
+    (worker side, from a row) and the save-time test (from a not-yet-persisted config). `model` only
+    matters for the worker's completions; the probe ignores it."""
+    if provider == "ollama":
+        return OllamaProvider(base_url=base_url or None, model=model or None)
+    if provider == "openai":
+        return OpenAIProvider(api_key=key, base_url=base_url or None, model=model or None)
+    if provider == "anthropic":
+        return AnthropicProvider(api_key=key, base_url=base_url or None, model=model or None)
+    if provider == "custom":
         # any OpenAI-compatible server (LM Studio, vLLM, llama.cpp, …) — reuses the OpenAI adapter,
         # same decision as the desktop AI Console's custom provider. Pass the decrypted key AS-IS
         # (""=keyless): `key or None` would coerce "" to None → OpenAIProvider falls back to the
         # server's .env OPENAI_API_KEY and would ship it to this connection's arbitrary base_url.
-        return OpenAIProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
+        return OpenAIProvider(api_key=key, base_url=base_url or None, model=model or None)
     return StubLLMProvider()
 
 

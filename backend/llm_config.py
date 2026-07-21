@@ -34,6 +34,12 @@ def _bad(e: svc.BadProvider) -> HTTPException:
     return HTTPException(status.HTTP_400_BAD_REQUEST, str(e))
 
 
+def _test_failed(e: svc.TestFailed) -> HTTPException:
+    """Save-time connection test failed → 422 with the sanitized probe result (category + short
+    detail) so the form can show WHY inline. The row was not persisted."""
+    return HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail={"test": e.result})
+
+
 @router.get("", response_model=list[LlmConnectionOut])
 async def list_connections(
     _: object = Depends(require_perm("llm.view")),
@@ -53,6 +59,8 @@ async def create_connection(
                                base_url=body.base_url, api_key=body.api_key)
     except svc.BadProvider as e:
         raise _bad(e)
+    except svc.TestFailed as e:
+        raise _test_failed(e)
     return LlmConnectionOut(**out)
 
 
@@ -68,6 +76,8 @@ async def update_connection(
                                base_url=body.base_url, api_key=body.api_key)
     except svc.BadProvider as e:
         raise _bad(e)
+    except svc.TestFailed as e:
+        raise _test_failed(e)
     except svc.NotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
     return LlmConnectionOut(**out)

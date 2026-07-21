@@ -134,7 +134,7 @@ def test_service_test_connection_delegates_and_times(monkeypatch):
         async def probe(self, *, timeout=5.0):
             return {"ok": True, "status": 200, "category": "ok", "detail": ""}
     monkeypatch.setattr(svc.repo, "get_connection", fake_get)
-    monkeypatch.setattr(svc, "build_provider", lambda row: FakeProvider())
+    monkeypatch.setattr(svc, "_build_provider_raw", lambda provider, base_url, key, **kw: FakeProvider())
 
     out = asyncio.run(svc.test_connection(None, "cid"))
     assert out["ok"] is True and out["category"] == "ok"

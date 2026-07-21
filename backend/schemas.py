@@ -32,6 +32,7 @@ class LlmConnectionOut(BaseModel):
     base_url: str | None = None
     is_active: bool
     api_key_set: bool                  # masked — true if a key is stored (the value is never sent)
+    last_test_status: str | None = None  # "ok" (passed at save time) | null (not tested yet) — drives the UI tag
     created_at: datetime
 
 
