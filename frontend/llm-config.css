@@ -26,16 +26,10 @@
 }
 .llm-conn-table .conn-name > .badge { flex: 0 0 auto; }
 
-/* Test-connection status pill — a badge that shows its result on hover/focus (Tooltip) AND is the
-   re-test control (role=button, click / Enter / Space re-probes). Keyboard-reachable via tabIndex. */
-.llm-conn-table .llm-test-pill {
-  cursor: pointer;
-  outline: none;
-}
-.llm-conn-table .llm-test-pill:focus-visible {
-  box-shadow: 0 0 0 2px var(--accent-soft, rgba(80,120,255,.35));
-  border-radius: 999px;
-}
+/* Test-connection status tag — server-driven (last_test_status), not a control. A passed row uses the
+   green `.badge.on` (with a dot); an untested (legacy) row uses the neutral badge. Testing happens on
+   save, so there is no per-row button. */
+.llm-conn-table .llm-test-tag { white-space: nowrap; }
 
 /* Provider cell — labels differ a lot in length; truncate to one line with … (full name on hover
    via the Tooltip) so a long "กำหนดเอง (OpenAI-compatible)" doesn't wrap to 3 lines and make the row
@@ -67,3 +61,22 @@
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* --- connection form modal --------------------------------------------------------------------- */
+
+/* Save-time test failure, shown inline in the form (the row was not saved). */
+.llm-form-err {
+  margin-bottom: 14px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--danger-ink, #b42318);
+  background: var(--danger-soft, rgba(220, 60, 50, .10));
+  border: 1px solid var(--danger-line, rgba(220, 60, 50, .28));
+}
+
+/* Give the fields room to breathe and separate the footer from the last field (was cramped).
+   Field's wrapper class is `.bf` (Input.jsx). */
+.llm-form-modal .bf { margin-bottom: 14px; }
+.llm-form-modal .foot { margin-top: 20px; }
+.llm-form-foot { display: flex; justify-content: flex-end; gap: 12px; }

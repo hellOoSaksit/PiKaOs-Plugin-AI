@@ -18,7 +18,9 @@ export function LlmConfig({ ctx }) {
   const [error, setError] = useState(null);
   const [form, setForm] = useState(null);            // { mode: 'create'|'edit', id?, data }
   const [busy, setBusy] = useState(false);
-  const [tests, setTests] = useState({});            // { [connId]: { loading?, ok, category, status } }
+  const [formError, setFormError] = useState(null);  // save-time test result when it FAILS (shown in the modal)
+
+  const openForm = (f) => { setFormError(null); setForm(f); };
 
   const load = useCallback(() => {
     setError(null);
@@ -45,24 +47,27 @@ export function LlmConfig({ ctx }) {
       act(() => api.raw(`/ai/llm/connections/${c.id}`, { method: 'DELETE' }));
     }
   };
-  const save = () => act(() => {
+  // Save = test-on-save. The backend probes the connection FIRST and only persists on a pass; a pass
+  // closes the modal and the row shows a server-driven "ready" tag, a fail keeps the modal open and
+  // shows the reason inline (the row is never written). The stored key is used for the test when the
+  // key field is left blank, so it never leaves the server.
+  const save = () => {
+    setBusy(true);
+    setFormError(null);
     const body = toPayload(form.data);
-    return form.mode === 'edit'
+    const req = form.mode === 'edit'
       ? api.raw(`/ai/llm/connections/${form.id}`, { method: 'PATCH', body })
       : api.raw('/ai/llm/connections', { method: 'POST', body });
-  });
+    req.then(() => { setForm(null); load(); })
+      .catch((e) => {
+        // 422 { detail: { test: {category, detail, status} } } = the save-time test failed
+        const test = e && e.data && e.data.detail && e.data.detail.test;
+        setFormError(test || { category: 'error', detail: e.message || 'error' });
+      })
+      .finally(() => setBusy(false));
+  };
   const bindRole = (role, cid) =>
     act(() => api.raw(`/ai/llm/roles/${role}`, { method: 'PUT', body: { connection_id: cid || null } }));
-
-  // Test connection — probe the SAVED endpoint + stored key server-side (the key never leaves the
-  // server). The result is a sanitized {ok, category, status}; the pill localizes it by category.
-  const testConn = (c) => {
-    setTests((t) => ({ ...t, [c.id]: { loading: true } }));
-    api.raw(`/ai/llm/connections/${c.id}/test`, { method: 'POST' })
-      .then((r) => setTests((t) => ({ ...t, [c.id]: { ...r, loading: false } })))
-      .catch((e) => setTests((t) => ({ ...t, [c.id]: { ok: false, category: 'error', detail: e.message, loading: false } })));
-  };
-  const testLabel = (r) => t('llmcfg.test.cat.' + (r.category || 'error')) + (r.status ? ` · HTTP ${r.status}` : '');
 
   const setF = (k) => (e) => setForm((f) => ({ ...f, data: { ...f.data, [k]: e.target.value } }));
   const fields = form ? providerFields(form.data.provider) : null;
@@ -89,29 +94,20 @@ export function LlmConfig({ ctx }) {
       </span>
     ) },
     { key: 'test', header: t('llmcfg.test.col'), render: (c) => {
-      const r = tests[c.id];
-      if (r && !r.loading) {
-        // the pill IS the re-test control — click / Enter / Space re-probes (a fixed key/endpoint
-        // must be verifiable without a full reload). Tooltip localizes the last result by category.
-        const retest = () => { if (!busy) testConn(c); };
-        return (
-          <Tooltip label={testLabel(r)}>
-            <span className={`badge ${r.ok ? 'on' : 'warn'} llm-test-pill`} data-no-lex tabIndex={0}
-              role="button" aria-label={`${testLabel(r)} — ${t('llmcfg.test.btn')}`} aria-disabled={busy}
-              onClick={retest} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); retest(); } }}>
-              <span className="dot" />{r.ok ? t('llmcfg.test.ready') : t('llmcfg.test.notReady')}
-            </span>
-          </Tooltip>
-        );
-      }
-      return <Button size="sm" icon="refresh" label={t('llmcfg.test.btn')} loading={!!(r && r.loading)}
-        loadingLabel={t('llmcfg.test.testing')} disabled={busy} onClick={() => testConn(c)}>{t('llmcfg.test.btn')}</Button>;
+      // Status is server-driven (last_test_status): a row only exists once its save-time test passed,
+      // so "ok" → ready; null → a legacy row not tested yet. No manual button — testing happens on save.
+      const ok = c.last_test_status === 'ok';
+      return (
+        <span className={`badge ${ok ? 'on' : ''} llm-test-tag`} data-no-lex>
+          {ok && <span className="dot" />}{ok ? t('llmcfg.test.ready') : t('llmcfg.test.untested')}
+        </span>
+      );
     } },
     { key: 'act', header: '', render: (c) => (
       <span className="uc-act" onClick={(e) => e.stopPropagation()}>
         {!c.is_active && <Button size="sm" disabled={busy} onClick={() => activate(c)}>{t('llmcfg.activate')}</Button>}
         <Button size="sm" icon="edit" label={t('llmcfg.edit')} disabled={busy}
-          onClick={() => setForm({ mode: 'edit', id: c.id, data: { name: c.name, provider: c.provider, model: c.model || '', base_url: c.base_url || '', api_key: '' } })} />
+          onClick={() => openForm({ mode: 'edit', id: c.id, data: { name: c.name, provider: c.provider, model: c.model || '', base_url: c.base_url || '', api_key: '' } })} />
         <Button size="sm" kind="danger" icon="delete" label={t('llmcfg.del')} disabled={busy} onClick={() => remove(c)} />
       </span>
     ) },
@@ -121,7 +117,7 @@ export function LlmConfig({ ctx }) {
     <div className="content-pad">
       <PageHead title={t('llmcfg.title')} desc={t('llmcfg.hint')}
         actions={<Button kind="gold" icon="add" disabled={busy}
-          onClick={() => setForm({ mode: 'create', data: { ...EMPTY_FORM } })}>{t('llmcfg.add')}</Button>} />
+          onClick={() => openForm({ mode: 'create', data: { ...EMPTY_FORM } })}>{t('llmcfg.add')}</Button>} />
 
       {error && <div className="badge warn" data-no-lex>{t('llmcfg.err')}: {error}</div>}
 
@@ -150,13 +146,22 @@ export function LlmConfig({ ctx }) {
       </Panel>
 
       {form && (
-        <Modal open onClose={() => setForm(null)}
+        <Modal open onClose={() => setForm(null)} className="llm-form-modal"
           title={form.mode === 'edit' ? t('llmcfg.editTitle') : t('llmcfg.addTitle')}
           showClose closeLabel={t('common.close')}
-          footer={<>
+          footer={<div className="llm-form-foot">
             <Button disabled={busy} onClick={() => setForm(null)}>{t('llmcfg.cancel')}</Button>
-            <Button kind="gold" disabled={busy || !canSave(form.data, form.mode)} onClick={save}>{t('llmcfg.save')}</Button>
-          </>}>
+            <Button kind="gold" loading={busy} loadingLabel={t('llmcfg.test.testing')}
+              disabled={busy || !canSave(form.data, form.mode)} onClick={save}>{t('llmcfg.save')}</Button>
+          </div>}>
+          {formError && (
+            // save-time test failed → the reason shows HERE (the row was not saved). Category is
+            // localized; the upstream HTTP status is appended when there was one.
+            <div className="llm-form-err" data-no-lex role="alert">
+              ⚠ {t('llmcfg.test.cat.' + (formError.category || 'error'))}
+              {formError.status ? ` · HTTP ${formError.status}` : ''}
+            </div>
+          )}
           <Field id="llm-name" label={t('llmcfg.name')} placeholder={t('llmcfg.namePh')}
             value={form.data.name} onChange={setF('name')} />
           <Field label={t('llmcfg.provider')}>
