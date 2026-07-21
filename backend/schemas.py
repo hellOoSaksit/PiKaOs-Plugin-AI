@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 class LlmConnectionIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
-    provider: str = Field(description="ollama | openai | anthropic")
+    provider: str = Field(description="ollama | openai | anthropic | custom")
     model: str = ""
     base_url: str | None = None
     api_key: str | None = None         # write-only — encrypted at rest, never returned

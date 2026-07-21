@@ -161,3 +161,56 @@ def test_set_active_keeps_one_active():
             await c.commit()
         await eng.dispose()
     asyncio.run(cleanup())
+
+
+# --- custom (OpenAI-compatible) provider --------------------------------------
+
+
+def test_build_provider_custom_uses_openai_adapter():
+    row = _row(provider="custom", base_url="http://localhost:1234/v1/chat/completions",
+               model="qwen2.5", api_key_enc=None)
+    assert isinstance(svc.build_provider(row), OpenAIProvider)
+
+
+def test_create_custom_requires_base_url():
+    try:
+        asyncio.run(svc.create(None, name="lm", provider="custom", model="",
+                               base_url=None, api_key=None))
+        assert False, "expected BadProvider"
+    except svc.BadProvider:
+        pass
+
+
+def test_create_custom_with_base_url_ok(monkeypatch):
+    async def fake_ins(db, **kw):
+        return _row(provider="custom", base_url=kw["base_url"])
+    monkeypatch.setattr(repo, "insert_connection", fake_ins)
+    out = asyncio.run(svc.create(None, name="lm", provider="custom", model="qwen2.5",
+                                 base_url="http://localhost:1234/v1/chat/completions",
+                                 api_key=None))
+    assert out["provider"] == "custom"
+
+
+def test_update_to_custom_without_stored_base_url_rejected(monkeypatch):
+    async def fake_get(db, cid):
+        return _row(provider="ollama", base_url=None)
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    try:
+        asyncio.run(svc.update(None, uuid.uuid4(), provider="custom"))
+        assert False, "expected BadProvider"
+    except svc.BadProvider:
+        pass
+
+
+def test_update_to_custom_with_stored_base_url_ok(monkeypatch):
+    stored = _row(provider="ollama", base_url="http://localhost:11434/v1/chat/completions")
+
+    async def fake_get(db, cid):
+        return stored
+
+    async def fake_upd(db, cid, **kw):
+        return _row(provider="custom", base_url=stored.base_url)
+    monkeypatch.setattr(repo, "get_connection", fake_get)
+    monkeypatch.setattr(repo, "update_connection", fake_upd)
+    out = asyncio.run(svc.update(None, uuid.uuid4(), provider="custom"))
+    assert out["provider"] == "custom"

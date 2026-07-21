@@ -24,7 +24,7 @@ from .llm_anthropic import AnthropicProvider
 from .llm_ollama import OllamaProvider
 from .llm_openai import OpenAIProvider
 
-PROVIDERS = ("ollama", "openai", "anthropic")
+PROVIDERS = ("ollama", "openai", "anthropic", "custom")
 
 # System roles that consume an LLM. The catalog is the *source of truth* the UI reads (no-hardcode:
 # the frontend renders whatever roles the backend exposes, labelled via i18n `llmcfg.role.<key>`).
@@ -65,6 +65,8 @@ async def list_out(db) -> list[dict]:
 async def create(db, *, name: str, provider: str, model: str,
                  base_url: str | None, api_key: str | None) -> dict:
     _validate_provider(provider)
+    if provider == "custom" and not base_url:
+        raise BadProvider("custom provider requires base_url")
     enc = crypto.encrypt(api_key) if api_key else None
     row = await repo.insert_connection(db, name=name, provider=provider, model=model or "",
                                        base_url=base_url or None, api_key_enc=enc)
@@ -75,6 +77,13 @@ async def create(db, *, name: str, provider: str, model: str,
 async def update(db, cid: uuid.UUID, *, name=None, provider=None, model=None,
                  base_url=None, api_key=None) -> dict:
     _validate_provider(provider)
+    if provider == "custom" and not base_url:
+        # an update may switch provider without resending base_url — check the stored row
+        cur = await repo.get_connection(db, cid)
+        if cur is None:
+            raise NotFound
+        if not cur.base_url:
+            raise BadProvider("custom provider requires base_url")
     # only re-encrypt when a new key is actually supplied; "" / None leaves it unchanged
     enc = crypto.encrypt(api_key) if api_key else None
     row = await repo.update_connection(db, cid, name=name, provider=provider, model=model,
@@ -147,6 +156,11 @@ def build_provider(row) -> object:
         return OpenAIProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
     if row.provider == "anthropic":
         return AnthropicProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
+    if row.provider == "custom":
+        # any OpenAI-compatible server (LM Studio, vLLM, llama.cpp, …) — reuses the OpenAI adapter,
+        # same decision as the desktop AI Console's custom provider
+        return OpenAIProvider(api_key=key or None, base_url=row.base_url or None,
+                              model=row.model or None)
     return StubLLMProvider()
 
 
