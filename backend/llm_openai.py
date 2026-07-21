@@ -126,12 +126,18 @@ class OpenAIProvider:
         if oai_tools:
             body["tools"] = oai_tools
 
-        headers = {"Authorization": f"Bearer {self.api_key}", "content-type": "application/json"}
+        headers = {"content-type": "application/json", **self._auth_headers()}
         async with httpx.AsyncClient(base_url=self.base_url, timeout=self.timeout,
                                      transport=self._transport) as client:
             resp = await client.post("/chat/completions", json=body, headers=headers)
             resp.raise_for_status()
             return parse_openai_response(resp.json())
+
+    def _auth_headers(self) -> dict:
+        """Bearer header ONLY when a key is set. A keyless connection (a local LLM — LM Studio, vLLM,
+        llama.cpp via `custom`) must send NO Authorization: `Bearer ` (empty) is an illegal header
+        value (h11 rejects it), which made every keyless probe/completion fail with a network error."""
+        return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
     async def probe(self, *, timeout: float = 5.0) -> dict:
         """Cheap liveness/auth check for the Test-connection button — GET {root}/models (no token
@@ -140,5 +146,4 @@ class OpenAIProvider:
         from . import llm_probe
         return await llm_probe.run_probe(
             method="GET", url=f"{self.base_url}/models",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            timeout=timeout, transport=self._transport)
+            headers=self._auth_headers(), timeout=timeout, transport=self._transport)

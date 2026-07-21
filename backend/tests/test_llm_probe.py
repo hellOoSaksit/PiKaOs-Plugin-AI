@@ -72,6 +72,22 @@ def test_openai_probe_ok_hits_models_on_the_base_root():
     assert seen["auth"] == "Bearer sk-x"
 
 
+def test_openai_probe_keyless_sends_no_auth_header():
+    # A keyless custom/local LLM must NOT send `Authorization: Bearer ` (empty) — h11 rejects that as an
+    # illegal header value, so every keyless probe/completion failed with a network error (live UAT
+    # 2026-07-21, a MockTransport can't see it). Keyless → omit the header entirely.
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json={"data": []})
+
+    p = OpenAIProvider(api_key="", base_url="http://localhost:1234/v1", transport=_transport(handler))
+    res = asyncio.run(p.probe(timeout=2))
+    assert res["ok"] is True
+    assert seen["auth"] is None       # no Authorization header at all
+
+
 def test_openai_probe_auth_rejected():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": {"message": "invalid api key"}})
