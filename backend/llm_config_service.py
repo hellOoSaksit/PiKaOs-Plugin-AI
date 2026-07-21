@@ -214,8 +214,10 @@ def build_provider(row) -> object:
         return AnthropicProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
     if row.provider == "custom":
         # any OpenAI-compatible server (LM Studio, vLLM, llama.cpp, …) — reuses the OpenAI adapter,
-        # same decision as the desktop AI Console's custom provider
-        return OpenAIProvider(api_key=key or None, base_url=row.base_url or None, model=row.model or None)
+        # same decision as the desktop AI Console's custom provider. Pass the decrypted key AS-IS
+        # (""=keyless): `key or None` would coerce "" to None → OpenAIProvider falls back to the
+        # server's .env OPENAI_API_KEY and would ship it to this connection's arbitrary base_url.
+        return OpenAIProvider(api_key=key, base_url=row.base_url or None, model=row.model or None)
     return StubLLMProvider()
 
 

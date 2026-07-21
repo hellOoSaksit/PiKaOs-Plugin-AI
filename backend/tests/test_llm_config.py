@@ -172,6 +172,16 @@ def test_build_provider_custom_uses_openai_adapter():
     assert isinstance(svc.build_provider(row), OpenAIProvider)
 
 
+def test_build_provider_custom_keyless_never_leaks_env_key(monkeypatch):
+    """A keyless `custom` connection points at an admin-supplied endpoint (an arbitrary URL). Its
+    built provider must NOT fall back to the server's .env OpenAI key — that would ship the real key
+    to that endpoint (probe/inference `Authorization: Bearer <settings key>`). See CLAUDE.md rule 2."""
+    monkeypatch.setattr(settings, "openai_api_key", "sk-env-secret")
+    row = _row(provider="custom", base_url="http://untrusted.example/v1", api_key_enc=None)
+    prov = svc.build_provider(row)
+    assert prov.api_key != "sk-env-secret"   # empty/no key, not the .env fallback
+
+
 def test_create_custom_requires_base_url():
     try:
         asyncio.run(svc.create(None, name="lm", provider="custom", model="",
