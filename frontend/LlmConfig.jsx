@@ -68,11 +68,13 @@ export function LlmConfig({ ctx }) {
   const fields = form ? providerFields(form.data.provider) : null;
 
   const columns = [
-    { key: 'name', header: t('llmcfg.name'), render: (c) => (
-      <span>
-        <span>{c.name}</span>
-        {c.is_active && <span className="badge on" style={{ marginLeft: 8 }} data-no-lex>{t('llmcfg.active')}</span>}
-      </span>
+    { key: 'name', header: t('llmcfg.name'), className: 'conn-name', render: (c) => (
+      // one line: the name ellipsises (full value on hover) while the active badge keeps its width,
+      // so a longer name can't wrap and make the row taller than its neighbours.
+      <>
+        <Tooltip label={c.name} className="conn-name-tip"><span data-no-lex>{c.name}</span></Tooltip>
+        {c.is_active && <span className="badge on" data-no-lex>{t('llmcfg.active')}</span>}
+      </>
     ) },
     { key: 'provider', header: t('llmcfg.provider'), className: 'prov-cell', render: (c) => {
       // Provider labels vary in length ("Anthropic" vs "กำหนดเอง (OpenAI-compatible)"); truncate to

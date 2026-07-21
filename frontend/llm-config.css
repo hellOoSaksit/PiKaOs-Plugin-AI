@@ -2,11 +2,29 @@
    auth users table; this screen has SIX columns (name · provider · model · key · test · actions), so
    without an override the cells inherit the wrong track sizes (model too narrow → the id wraps, the
    action cell too tight → the buttons stack). Scope a 6-track grid + balance the type so the row reads
-   as one line. Two-class selector out-specifies the bare `.utable` rule. */
+   as one line. Two-class selector out-specifies the bare `.utable` rule.
+   The header (.utable-th) and every row (.utable-tr) are SEPARATE grid containers, so any flexible
+   track (fr / auto) sizes independently per container — an `auto` actions track was 0px in the empty
+   header but ~147px in a body row, which changed the free space and pushed the header's fr columns
+   wider → header labels drifted right of their cells. Every track is therefore FIXED-width except the
+   two fr columns, whose free space is now identical in both grids, so headers and cells line up. */
 .llm-conn-table .utable-th,
 .llm-conn-table .utable-tr {
-  grid-template-columns: minmax(150px, 1.5fr) 140px minmax(130px, 1fr) 100px 128px auto;
+  grid-template-columns: minmax(160px, 1.6fr) 130px minmax(120px, 1fr) 100px 120px 152px;
 }
+
+/* Name cell — the name ellipsises but the "active" badge keeps its size, so a long name stays on one
+   line (equal row heights) instead of wrapping and pushing the row taller. flex + min-width:0 lets the
+   text shrink to the … while the badge doesn't. */
+.llm-conn-table .conn-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.llm-conn-table .conn-name-tip { min-width: 0; overflow: hidden; }
+.llm-conn-table .conn-name-tip > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.llm-conn-table .conn-name > .badge { flex: 0 0 auto; }
 
 /* Test-connection status pill — a badge that shows its result on hover/focus (Tooltip) AND is the
    re-test control (role=button, click / Enter / Space re-probes). Keyboard-reachable via tabIndex. */
